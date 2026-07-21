@@ -37,6 +37,7 @@ type ChatModel = "flash" | "pro";
 type UserProfilePayload = {
   id?: string;
   name?: string | null;
+  display_name?: string | null;
   preferences?: Json;
 };
 
@@ -386,7 +387,7 @@ function createPersonalizedSystemPrompt(
   const promptWithKnowledge = `${basePrompt}
 
 ${knowledgePrompt}`;
-  const name = userProfile?.name?.trim();
+  const name = userProfile?.display_name?.trim() ?? userProfile?.name?.trim();
   const preferences =
     userProfile?.preferences &&
     typeof userProfile.preferences === "object" &&
@@ -426,7 +427,7 @@ async function saveUserName(
 
   const { error } = await profileClient
     .from("user_profiles")
-    .update({ name: cleanName })
+    .update({ name: cleanName, display_name: cleanName })
     .eq("id", userId);
 
   if (error) {

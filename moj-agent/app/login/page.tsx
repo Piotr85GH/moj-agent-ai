@@ -39,6 +39,17 @@ export default function LoginPage() {
       return;
     }
 
+    if (result.data.user) {
+      await supabase.from("user_profiles").upsert(
+        {
+          id: result.data.user.id,
+          display_name: null,
+          preferences: {},
+        },
+        { onConflict: "id", ignoreDuplicates: true },
+      );
+    }
+
     if (mode === "sign-up" && !result.data.session) {
       setStatus("Konto utworzone. Sprawdz email i potwierdz rejestracje.");
     } else {

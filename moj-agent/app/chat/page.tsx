@@ -12,6 +12,7 @@ type AIModel = "flash" | "pro";
 type UserProfile = {
   id: string;
   name: string | null;
+  display_name: string | null;
   preferences: Record<string, unknown>;
 };
 
@@ -121,12 +122,25 @@ function formatPreferencesList(preferences: Record<string, unknown>) {
     .join("\n");
 }
 
+function getProfileName(userProfile: UserProfile) {
+  return userProfile.display_name ?? userProfile.name;
+}
+
+function extractNameFromMessage(text: string) {
+  const match = text.match(
+    /\b(?:mam na imi[eę]|jestem|nazywam si[eę])\s+([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż-]{1,30})\b/u,
+  );
+
+  return match?.[1] ?? null;
+}
+
 function createProfileGreeting(userProfile: UserProfile) {
   const preferencesList = formatPreferencesList(userProfile.preferences);
+  const name = getProfileName(userProfile);
 
-  return userProfile.name
+  return name
     ? [
-        `Cześć, ${userProfile.name}! Miło Cię znowu widzieć.`,
+        `Cześć, ${name}! Miło Cię znowu widzieć.`,
         preferencesList
           ? `Pamiętam Twoje preferencje:\n${preferencesList}`
           : "Nie mam jeszcze zapisanych preferencji.",
@@ -224,7 +238,7 @@ export default function Home() {
 
       const { data: existingProfile, error: readError } = await supabase
         .from("user_profiles")
-        .select("id, name, preferences")
+        .select("id, name, display_name, preferences")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -237,6 +251,7 @@ export default function Home() {
         setUserProfile({
           id: user.id,
           name: null,
+          display_name: null,
           preferences: {},
         });
         setIsLoadingProfile(false);
@@ -247,6 +262,7 @@ export default function Home() {
         setUserProfile({
           id: existingProfile.id,
           name: existingProfile.name,
+          display_name: existingProfile.display_name,
           preferences: normalizePreferences(existingProfile.preferences),
         });
         setIsLoadingProfile(false);
@@ -255,8 +271,8 @@ export default function Home() {
 
       const { data: createdProfile, error: createError } = await supabase
         .from("user_profiles")
-        .insert({ id: user.id, preferences: {} })
-        .select("id, name, preferences")
+        .insert({ id: user.id, display_name: null, preferences: {} })
+        .select("id, name, display_name, preferences")
         .single();
 
       if (isCancelled) {
@@ -268,6 +284,7 @@ export default function Home() {
         setUserProfile({
           id: user.id,
           name: null,
+          display_name: null,
           preferences: {},
         });
         setIsLoadingProfile(false);
@@ -277,6 +294,7 @@ export default function Home() {
       setUserProfile({
         id: createdProfile.id,
         name: createdProfile.name,
+        display_name: createdProfile.display_name,
         preferences: normalizePreferences(createdProfile.preferences),
       });
       setIsLoadingProfile(false);
@@ -594,7 +612,7 @@ export default function Home() {
 
     const { data, error: readError } = await supabase
       .from("user_profiles")
-      .select("id, name, preferences")
+      .select("id, name, display_name, preferences")
       .eq("id", currentProfile.id)
       .single();
 
@@ -606,8 +624,43 @@ export default function Home() {
     setUserProfile({
       id: data.id,
       name: data.name,
+      display_name: data.display_name,
       preferences: normalizePreferences(data.preferences),
     });
+  }
+
+  async function rememberNameFromMessage(text: string) {
+    const currentProfile = userProfileRef.current;
+
+    if (!currentProfile || getProfileName(currentProfile)) {
+      return;
+    }
+
+    const extractedName = extractNameFromMessage(text);
+
+    if (!extractedName) {
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("user_profiles")
+      .update({ name: extractedName, display_name: extractedName })
+      .eq("id", currentProfile.id);
+
+    if (updateError) {
+      setProfileStatus(`Nie udalo sie zapisac imienia: ${updateError.message}`);
+      return;
+    }
+
+    const updatedProfile = {
+      ...currentProfile,
+      name: extractedName,
+      display_name: extractedName,
+    };
+
+    setUserProfile(updatedProfile);
+    userProfileRef.current = updatedProfile;
+    setProfileStatus(`Milo Cie poznac, ${extractedName}! Zapamietam.`);
   }
 
   async function sendUserMessage(text: string) {
@@ -616,6 +669,7 @@ export default function Home() {
     }
 
     lastSentModelRef.current = model;
+    await rememberNameFromMessage(text);
     await ensureConversation(text || "Rozmowa o obrazie");
     const accessToken = await getAccessToken();
     await sendMessage(
@@ -722,7 +776,7 @@ export default function Home() {
             <div className="memory-content">
               <p>
                 Wiadomosci: {messages.length} | ~Tokeny: {estimatedTokens}
-                {userProfile?.name ? ` | Uzytkownik: ${userProfile.name}` : ""}
+                {userProfile ? ` | Uzytkownik: ${getProfileName(userProfile) ?? "bez imienia"}` : ""}
               </p>
               <div className="memory-actions">
                 <button onClick={startNewConversation} type="button">

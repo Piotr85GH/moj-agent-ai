@@ -21,6 +21,7 @@ create table if not exists public.user_profiles (
   id uuid primary key references auth.users(id) on delete cascade default auth.uid(),
   created_at timestamptz not null default now(),
   name text,
+  display_name text,
   preferences jsonb not null default '{}'::jsonb
 );
 
@@ -36,7 +37,11 @@ create table if not exists public.documents (
 
 alter table public.conversations add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.documents add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.user_profiles add column if not exists display_name text;
 alter table public.user_profiles alter column id set default auth.uid();
+update public.user_profiles
+set display_name = name
+where display_name is null and name is not null;
 
 delete from public.messages
 where conversation_id in (

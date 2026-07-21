@@ -103,18 +103,21 @@ export type Database = {
           id: string;
           created_at: string;
           name: string | null;
+          display_name: string | null;
           preferences: Json;
         };
         Insert: {
           id?: string;
           created_at?: string;
           name?: string | null;
+          display_name?: string | null;
           preferences?: Json;
         };
         Update: {
           id?: string;
           created_at?: string;
           name?: string | null;
+          display_name?: string | null;
           preferences?: Json;
         };
         Relationships: [];
