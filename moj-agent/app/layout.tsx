@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AuthProvider } from "./auth-provider";
 import { Navigation } from "./navigation";
 import "./globals.css";
 
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="pl" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <Navigation />
-        <div className="app-content">{children}</div>
+        <AuthProvider>
+          <Navigation />
+          <div className="app-content">{children}</div>
+        </AuthProvider>
       </body>
     </html>
   );

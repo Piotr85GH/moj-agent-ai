@@ -1,5 +1,6 @@
 import { createEmbedding } from "./embeddings";
 import { supabase } from "./supabase";
+import type { AppSupabaseClient } from "./supabase-server";
 
 type MatchDocumentRow = {
   id?: string;
@@ -9,7 +10,11 @@ type MatchDocumentRow = {
   similarity?: number | null;
 };
 
-export async function searchKnowledge(query: string) {
+export async function searchKnowledge(
+  query: string,
+  userId?: string,
+  client: AppSupabaseClient = supabase,
+) {
   const cleanQuery = query.trim();
 
   if (!cleanQuery) {
@@ -21,11 +26,21 @@ export async function searchKnowledge(query: string) {
     };
   }
 
+  if (!userId) {
+    return {
+      results: [],
+      total_found: 0,
+      source_documents: [],
+      message: "Musisz byc zalogowany, zeby przeszukiwac baze wiedzy.",
+    };
+  }
+
   const embedding = await createEmbedding(cleanQuery);
-  const { data, error } = await supabase.rpc("match_documents", {
+  const { data, error } = await client.rpc("match_documents", {
     query_embedding: embedding,
     match_threshold: 0.5,
     match_count: 5,
+    p_user_id: userId,
   });
 
   if (error) {
@@ -44,10 +59,11 @@ export async function searchKnowledge(query: string) {
   const addedAtById = new Map<string, string>();
 
   if (documentIds.length > 0) {
-    const { data: documentRows } = await supabase
+    const { data: documentRows } = await client
       .from("documents")
       .select("id, created_at")
-      .in("id", documentIds);
+      .in("id", documentIds)
+      .eq("user_id", userId);
 
     for (const row of documentRows ?? []) {
       addedAtById.set(row.id, row.created_at);

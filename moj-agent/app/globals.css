@@ -1492,6 +1492,10 @@
     grid-template-columns: 1fr;
   }
 
+  .login-panel {
+    grid-template-columns: 1fr;
+  }
+
   .dashboard-card dl,
   .forecast-list div,
   .holiday-list li {
@@ -1596,6 +1600,138 @@ body {
   border-color: #8f96ff;
   background: #242449;
   color: #ffffff;
+}
+
+.side-nav-signout {
+  border: 1px solid #6d2d35;
+  border-radius: 8px;
+  background: #2a1116;
+  color: #ffb4bf;
+  min-height: 40px;
+  font-weight: 800;
+}
+
+.side-nav-signout:hover {
+  border-color: #ff6b7a;
+  color: #ffffff;
+}
+
+.app-content:has(.login-shell),
+.app-content:has(.auth-loading) {
+  padding-left: 0;
+}
+
+.auth-loading,
+.login-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth-loading {
+  color: #a7a7b3;
+}
+
+.login-panel {
+  display: grid;
+  width: min(100%, 920px);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 28px;
+  align-items: center;
+}
+
+.login-copy span {
+  color: #83f2b4;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.login-copy h1 {
+  margin: 10px 0;
+  color: #ffffff;
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.login-copy p {
+  max-width: 560px;
+  color: #c9c9df;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.login-form {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #252535;
+  border-radius: 8px;
+  background: #111119;
+  padding: 22px;
+}
+
+.login-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.login-form label span {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.login-form input {
+  min-height: 46px;
+  border: 1px solid #303040;
+  border-radius: 8px;
+  background: #0b0b14;
+  color: #ffffff;
+  outline: none;
+  padding: 0 12px;
+}
+
+.login-form input:focus {
+  border-color: #8f96ff;
+}
+
+.login-submit,
+.login-mode {
+  min-height: 44px;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.login-submit {
+  border: 0;
+  background: #ededed;
+  color: #0a0a0a;
+}
+
+.login-mode {
+  border: 1px solid #303040;
+  background: #171721;
+  color: #ededed;
+}
+
+.login-status,
+.login-error {
+  border-radius: 8px;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.login-status {
+  border: 1px solid rgba(143, 227, 162, 0.35);
+  background: rgba(143, 227, 162, 0.12);
+  color: #aef4bd;
+}
+
+.login-error {
+  border: 1px solid rgba(255, 92, 122, 0.35);
+  background: rgba(255, 92, 122, 0.12);
+  color: #ffb6c4;
 }
 
 .mobile-menu-button,

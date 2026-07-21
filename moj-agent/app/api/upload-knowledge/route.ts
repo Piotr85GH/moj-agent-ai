@@ -1,7 +1,7 @@
-import { supabase } from "@/lib/supabase";
 import { splitIntoChunks } from "@/lib/chunking";
 import { createEmbedding } from "@/lib/embeddings";
 import { searchKnowledge } from "@/lib/knowledge";
+import { requireSupabaseUser } from "@/lib/supabase-server";
 
 export const maxDuration = 60;
 
@@ -22,12 +22,19 @@ function streamEvent(
 }
 
 export async function GET(request: Request) {
+  const auth = await requireSupabaseUser(request);
+
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  const { supabase, user } = auth;
   const url = new URL(request.url);
   const selectedTitle = url.searchParams.get("title")?.trim();
   const query = url.searchParams.get("query")?.trim();
 
   if (query) {
-    const results = await searchKnowledge(query);
+    const results = await searchKnowledge(query, user.id, supabase);
 
     return Response.json(results);
   }
@@ -37,6 +44,7 @@ export async function GET(request: Request) {
       .from("documents")
       .select("id, title, content, metadata, created_at")
       .eq("title", selectedTitle)
+      .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
     if (error) {
@@ -49,6 +57,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase
     .from("documents")
     .select("title, created_at")
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -90,6 +99,13 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const auth = await requireSupabaseUser(request);
+
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  const { supabase, user } = auth;
   const { title }: { title?: string } = await request.json();
   const cleanTitle = title?.trim();
 
@@ -100,7 +116,8 @@ export async function DELETE(request: Request) {
   const { error } = await supabase
     .from("documents")
     .delete()
-    .eq("title", cleanTitle);
+    .eq("title", cleanTitle)
+    .eq("user_id", user.id);
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
@@ -110,6 +127,13 @@ export async function DELETE(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireSupabaseUser(request);
+
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  const { supabase, user } = auth;
   const { title, content }: { title?: string; content?: string } =
     await request.json();
   const cleanTitle = title?.trim();
@@ -145,6 +169,7 @@ export async function POST(request: Request) {
             title: cleanTitle,
             content: chunk,
             embedding,
+            user_id: user.id,
             metadata: {
               source: cleanTitle,
               chunk_index: index,

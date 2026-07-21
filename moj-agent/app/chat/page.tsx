@@ -4,6 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "../auth-provider";
 import { useImageAttachment } from "../use-image-attachment";
 
 type AIModel = "flash" | "pro";
@@ -158,6 +159,7 @@ function isLocalProfileGreeting(message: UIMessage) {
 }
 
 export default function Home() {
+  const { user, getAccessToken } = useAuth();
   const { messages, sendMessage, setMessages, status, error } = useChat();
   const [input, setInput] = useState("");
   const [model, setModel] = useState<AIModel>("flash");
@@ -213,20 +215,17 @@ export default function Home() {
     let isCancelled = false;
 
     async function loadUserProfile() {
+      if (!user) {
+        return;
+      }
+
       setIsLoadingProfile(true);
       setProfileStatus("");
-
-      let userId = window.localStorage.getItem("user_id");
-
-      if (!userId) {
-        userId = crypto.randomUUID();
-        window.localStorage.setItem("user_id", userId);
-      }
 
       const { data: existingProfile, error: readError } = await supabase
         .from("user_profiles")
         .select("id, name, preferences")
-        .eq("id", userId)
+        .eq("id", user.id)
         .maybeSingle();
 
       if (isCancelled) {
@@ -236,7 +235,7 @@ export default function Home() {
       if (readError) {
         setProfileStatus(`Profil niedostepny: ${readError.message}`);
         setUserProfile({
-          id: userId,
+          id: user.id,
           name: null,
           preferences: {},
         });
@@ -256,7 +255,7 @@ export default function Home() {
 
       const { data: createdProfile, error: createError } = await supabase
         .from("user_profiles")
-        .insert({ id: userId, preferences: {} })
+        .insert({ id: user.id, preferences: {} })
         .select("id, name, preferences")
         .single();
 
@@ -267,7 +266,7 @@ export default function Home() {
       if (createError) {
         setProfileStatus(`Nie udalo sie utworzyc profilu: ${createError.message}`);
         setUserProfile({
-          id: userId,
+          id: user.id,
           name: null,
           preferences: {},
         });
@@ -288,19 +287,26 @@ export default function Home() {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     let isCancelled = false;
 
     async function loadLatestConversation() {
+      if (!user) {
+        return;
+      }
+
       setIsLoadingConversation(true);
       setMemoryStatus("");
       const selectedConversationId = new URLSearchParams(
         window.location.search,
       ).get("conversation");
 
-      const conversationQuery = supabase.from("conversations").select("id");
+      const conversationQuery = supabase
+        .from("conversations")
+        .select("id")
+        .eq("user_id", user.id);
       const { data: conversation, error: conversationError } =
         selectedConversationId
           ? await conversationQuery.eq("id", selectedConversationId).maybeSingle()
@@ -384,7 +390,7 @@ export default function Home() {
     return () => {
       isCancelled = true;
     };
-  }, [setMessages]);
+  }, [setMessages, user]);
 
   useEffect(() => {
     setMessageModels((current) => {
@@ -431,9 +437,11 @@ export default function Home() {
   ]);
 
   useEffect(() => {
-    if (isLoadingConversation) {
+    if (isLoadingConversation || !user) {
       return;
     }
+
+    const currentUserId = user.id;
 
     async function saveNewMessages() {
       let currentConversationId = conversationIdRef.current;
@@ -465,7 +473,10 @@ export default function Home() {
         if (!currentConversationId) {
           const { data, error: createError } = await supabase
             .from("conversations")
-            .insert({ title: createConversationTitle(content) })
+            .insert({
+              title: createConversationTitle(content),
+              user_id: currentUserId,
+            })
             .select("id")
             .single();
 
@@ -502,7 +513,8 @@ export default function Home() {
         const { error: updateError } = await supabase
           .from("conversations")
           .update(conversationUpdate)
-          .eq("id", currentConversationId);
+          .eq("id", currentConversationId)
+          .eq("user_id", currentUserId);
 
         if (updateError) {
           setMemoryStatus(`Nie udalo sie odswiezyc rozmowy: ${updateError.message}`);
@@ -518,12 +530,16 @@ export default function Home() {
     }
 
     saveNewMessages();
-  }, [conversationId, isLoadingConversation, messages, status]);
+  }, [conversationId, isLoadingConversation, messages, status, user]);
 
   async function createNewConversation() {
+    if (!user) {
+      return null;
+    }
+
     const { data, error: createError } = await supabase
       .from("conversations")
-      .insert({ title: "Nowa rozmowa" })
+      .insert({ title: "Nowa rozmowa", user_id: user.id })
       .select("id")
       .single();
 
@@ -544,13 +560,17 @@ export default function Home() {
   }
 
   async function ensureConversation(title: string) {
+    if (!user) {
+      return null;
+    }
+
     if (conversationIdRef.current) {
       return conversationIdRef.current;
     }
 
     const { data, error: createError } = await supabase
       .from("conversations")
-      .insert({ title: createConversationTitle(title) })
+      .insert({ title: createConversationTitle(title), user_id: user.id })
       .select("id")
       .single();
 
@@ -591,19 +611,21 @@ export default function Home() {
   }
 
   async function sendUserMessage(text: string) {
-    if ((!text && !imageAttachment.attachedImage) || isLoading) {
+    if ((!text && !imageAttachment.attachedImage) || isLoading || !user) {
       return;
     }
 
     lastSentModelRef.current = model;
     await ensureConversation(text || "Rozmowa o obrazie");
+    const accessToken = await getAccessToken();
     await sendMessage(
       { text: text || "Co widzisz na tym obrazie?" },
       {
         body: {
           image: imageAttachment.attachedImage?.dataUrl,
           model,
-          userId: userProfileRef.current?.id,
+          accessToken,
+          userId: user.id,
           userProfile: userProfileRef.current,
         },
       },

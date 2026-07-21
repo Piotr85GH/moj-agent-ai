@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "../../auth-provider";
 
 type Conversation = {
   id: string;
@@ -35,6 +36,7 @@ function formatTime(value: string) {
 
 export default function HistoryDetailPage() {
   const params = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,6 +46,10 @@ export default function HistoryDetailPage() {
     let isCancelled = false;
 
     async function loadConversation() {
+      if (!user) {
+        return;
+      }
+
       setIsLoading(true);
       setStatus("");
 
@@ -51,6 +57,7 @@ export default function HistoryDetailPage() {
         .from("conversations")
         .select("id, title, created_at, updated_at")
         .eq("id", params.id)
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (isCancelled) {
@@ -95,7 +102,7 @@ export default function HistoryDetailPage() {
     return () => {
       isCancelled = true;
     };
-  }, [params.id]);
+  }, [params.id, user]);
 
   return (
     <main className="history-shell">

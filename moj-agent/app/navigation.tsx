@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useAuth } from "./auth-provider";
 
 const navItems = [
   { href: "/", icon: "\u{1F3E0}", label: "Dashboard" },
@@ -31,7 +32,12 @@ function isActive(pathname: string, href: string) {
 
 export function Navigation() {
   const pathname = usePathname();
+  const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
+
+  if (pathname === "/login") {
+    return null;
+  }
 
   return (
     <>
@@ -55,7 +61,7 @@ export function Navigation() {
       <nav className={`side-nav ${open ? "open" : ""}`} aria-label="Glowne">
         <div className="side-nav-brand">
           <strong>Agent AI</strong>
-          <span>Centrum dowodzenia</span>
+          <span>{user?.email ?? "Centrum dowodzenia"}</span>
         </div>
         <div className="side-nav-links">
           {navItems.map((item) => (
@@ -71,6 +77,15 @@ export function Navigation() {
             </Link>
           ))}
         </div>
+        <button
+          className="side-nav-signout"
+          onClick={() => {
+            void signOut();
+          }}
+          type="button"
+        >
+          Wyloguj
+        </button>
       </nav>
     </>
   );

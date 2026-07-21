@@ -7,6 +7,9 @@ export type Json =
   | Json[];
 
 export type Database = {
+  __InternalSupabase: {
+    PostgrestVersion: "12";
+  };
   public: {
     Tables: {
       conversations: {
@@ -15,18 +18,21 @@ export type Database = {
           created_at: string;
           title: string | null;
           updated_at: string;
+          user_id: string;
         };
         Insert: {
           id?: string;
           created_at?: string;
           title?: string | null;
           updated_at?: string;
+          user_id: string;
         };
         Update: {
           id?: string;
           created_at?: string;
           title?: string | null;
           updated_at?: string;
+          user_id?: string;
         };
         Relationships: [];
       };
@@ -38,6 +44,7 @@ export type Database = {
           content: string;
           embedding: number[] | null;
           metadata: Json;
+          user_id: string;
         };
         Insert: {
           id?: string;
@@ -46,6 +53,7 @@ export type Database = {
           content: string;
           embedding?: number[] | null;
           metadata?: Json;
+          user_id: string;
         };
         Update: {
           id?: string;
@@ -54,6 +62,7 @@ export type Database = {
           content?: string;
           embedding?: number[] | null;
           metadata?: Json;
+          user_id?: string;
         };
         Relationships: [];
       };
@@ -118,6 +127,7 @@ export type Database = {
           query_embedding: number[];
           match_threshold?: number;
           match_count?: number;
+          p_user_id: string;
         };
         Returns: Array<{
           id: string;

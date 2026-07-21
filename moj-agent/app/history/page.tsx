@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "../auth-provider";
 
 type ConversationRow = {
   id: string;
@@ -66,18 +67,24 @@ function shorten(text: string, maxLength: number) {
 
 export default function HistoryPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
 
   async function loadConversations() {
+    if (!user) {
+      return;
+    }
+
     setIsLoading(true);
     setStatus("");
 
     const { data: conversationRows, error: conversationsError } = await supabase
       .from("conversations")
       .select("id, title, created_at, updated_at")
+      .eq("user_id", user.id)
       .order("updated_at", { ascending: false });
 
     if (conversationsError) {
@@ -134,7 +141,7 @@ export default function HistoryPage() {
 
   useEffect(() => {
     loadConversations();
-  }, []);
+  }, [user]);
 
   const filteredConversations = useMemo(() => {
     const phrase = search.trim().toLowerCase();
@@ -149,6 +156,10 @@ export default function HistoryPage() {
   }, [conversations, search]);
 
   async function deleteConversation(id: string) {
+    if (!user) {
+      return;
+    }
+
     const confirmed = window.confirm(
       "Czy na pewno chcesz usunac te rozmowe? Tej operacji nie mozna cofnac.",
     );
@@ -157,20 +168,11 @@ export default function HistoryPage() {
       return;
     }
 
-    const { error: messagesError } = await supabase
-      .from("messages")
-      .delete()
-      .eq("conversation_id", id);
-
-    if (messagesError) {
-      setStatus(`Nie udalo sie usunac wiadomosci: ${messagesError.message}`);
-      return;
-    }
-
     const { error: conversationError } = await supabase
       .from("conversations")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user.id);
 
     if (conversationError) {
       setStatus(`Nie udalo sie usunac rozmowy: ${conversationError.message}`);

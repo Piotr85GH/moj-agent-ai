@@ -15,6 +15,10 @@ import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { searchKnowledge } from "@/lib/knowledge";
 import type { Json } from "@/lib/database.types";
+import {
+  createSupabaseServerClient,
+  type AppSupabaseClient,
+} from "@/lib/supabase-server";
 
 const enableSearchGrounding = process.env.ENABLE_SEARCH_GROUNDING === "true";
 
@@ -405,7 +409,11 @@ To nowy uzytkownik. Na poczatku pierwszej rozmowy przywitaj sie krotko i zapytaj
 Jesli uzytkownik poda preferencje, miasto, zainteresowania albo upodobania, uzyj narzedzia saveUserPreference, zeby zapisac je w profilu.`;
 }
 
-async function saveUserName(userId: string | undefined, name: string) {
+async function saveUserName(
+  userId: string | undefined,
+  name: string,
+  profileClient = supabase,
+) {
   const cleanName = name.trim().replace(/[.,!?;:]+$/g, "");
 
   if (!userId) {
@@ -416,7 +424,7 @@ async function saveUserName(userId: string | undefined, name: string) {
     return { ok: false, error: "Imie jest puste." };
   }
 
-  const { error } = await supabase
+  const { error } = await profileClient
     .from("user_profiles")
     .update({ name: cleanName })
     .eq("id", userId);
@@ -432,6 +440,7 @@ async function saveUserPreference(
   userId: string | undefined,
   key: string,
   value: string,
+  profileClient = supabase,
 ) {
   const cleanKey = key
     .trim()
@@ -448,7 +457,7 @@ async function saveUserPreference(
     return { ok: false, error: "Preferencja musi miec klucz i wartosc." };
   }
 
-  const { data: profile, error: readError } = await supabase
+  const { data: profile, error: readError } = await profileClient
     .from("user_profiles")
     .select("preferences")
     .eq("id", userId)
@@ -469,7 +478,7 @@ async function saveUserPreference(
     [cleanKey]: cleanValue,
   };
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await profileClient
     .from("user_profiles")
     .update({ preferences })
     .eq("id", userId);
@@ -486,11 +495,13 @@ function streamTextWithFallback({
   model,
   system,
   userId,
+  profileClient,
 }: {
   messages: ModelMessage[];
   model: ChatModel;
   system: string;
   userId?: string;
+  profileClient?: AppSupabaseClient;
 }) {
   let modelIndex = 0;
   let reader: ReadableStreamDefaultReader<TextStreamPart<any>> | undefined;
@@ -555,7 +566,8 @@ function streamTextWithFallback({
                     .string()
                     .describe("Pytanie do bazy wiedzy, np. 'ile kosztuje pakiet Premium'."),
                 }),
-                execute: async ({ query }) => searchKnowledge(query),
+                execute: async ({ query }) =>
+                  searchKnowledge(query, userId, profileClient),
               }),
               generateImage: tool({
                 description:
@@ -571,7 +583,8 @@ function streamTextWithFallback({
                 inputSchema: z.object({
                   name: z.string().describe("Imie uzytkownika, bez dodatkow."),
                 }),
-                execute: async ({ name }) => saveUserName(userId, name),
+                execute: async ({ name }) =>
+                  saveUserName(userId, name, profileClient),
               }),
               saveUserPreference: tool({
                 description:
@@ -583,7 +596,7 @@ function streamTextWithFallback({
                   value: z.string().describe("Wartosc preferencji."),
                 }),
                 execute: async ({ key, value }) =>
-                  saveUserPreference(userId, key, value),
+                  saveUserPreference(userId, key, value, profileClient),
               }),
             },
           });
@@ -629,17 +642,22 @@ export async function POST(req: Request) {
     model,
     mode,
     image,
-    userId,
+    accessToken,
     userProfile,
   }: {
     messages: UIMessage[];
     model?: ChatModel;
     mode?: "agent" | "search" | "vision";
     image?: string;
-    userId?: string;
+    accessToken?: string;
     userProfile?: UserProfilePayload;
   } =
     await req.json();
+  const profileClient = createSupabaseServerClient(accessToken);
+  const {
+    data: { user },
+  } = await profileClient.auth.getUser(accessToken);
+  const authenticatedUserId = user?.id;
   const chatModel = getChatModel(model);
   const modelMessages = attachImageToLatestUserMessage(
     await convertToModelMessages(messages),
@@ -660,7 +678,8 @@ export async function POST(req: Request) {
       userProfile,
     ),
     messages: modelMessages,
-    userId,
+    userId: authenticatedUserId,
+    profileClient,
   });
 
   return createUIMessageStreamResponse({

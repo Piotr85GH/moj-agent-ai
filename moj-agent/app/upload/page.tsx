@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useAuth } from "../auth-provider";
 
 type KnowledgeDocument = {
   title: string;
@@ -50,6 +51,7 @@ function formatDate(value: string) {
 }
 
 export default function UploadPage() {
+  const { getAccessToken } = useAuth();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
@@ -69,9 +71,17 @@ export default function UploadPage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
 
+  async function getAuthHeaders(): Promise<Record<string, string>> {
+    const accessToken = await getAccessToken();
+
+    return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+  }
+
   async function loadDocuments() {
     setIsLoadingDocuments(true);
-    const response = await fetch("/api/upload-knowledge");
+    const response = await fetch("/api/upload-knowledge", {
+      headers: await getAuthHeaders(),
+    });
     const data = await response.json();
 
     if (!response.ok) {
@@ -107,7 +117,10 @@ export default function UploadPage() {
     try {
       const response = await fetch("/api/upload-knowledge", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(await getAuthHeaders()),
+        },
         body: JSON.stringify({ title, content }),
       });
 
@@ -184,7 +197,10 @@ export default function UploadPage() {
     setError("");
     const response = await fetch("/api/upload-knowledge", {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getAuthHeaders()),
+      },
       body: JSON.stringify({ title: documentTitle }),
     });
     const data = await response.json();
@@ -210,6 +226,7 @@ export default function UploadPage() {
 
     const response = await fetch(
       `/api/upload-knowledge?title=${encodeURIComponent(documentTitle)}`,
+      { headers: await getAuthHeaders() },
     );
     const data = await response.json();
 
@@ -236,6 +253,7 @@ export default function UploadPage() {
 
     const response = await fetch(
       `/api/upload-knowledge?query=${encodeURIComponent(searchQuery)}`,
+      { headers: await getAuthHeaders() },
     );
     const data = await response.json();
 
