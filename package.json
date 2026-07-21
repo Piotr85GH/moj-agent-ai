@@ -1,0 +1,13 @@
+{
+  "name": "lekcja-01",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "moj-agent"
+  ],
+  "scripts": {
+    "dev": "npm --workspace moj-agent run dev",
+    "build": "npm --workspace moj-agent run build",
+    "start": "npm --workspace moj-agent run start"
+  }
+}

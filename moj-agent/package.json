@@ -1,0 +1,25 @@
+{
+  "name": "moj-agent",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "latest",
+    "@ai-sdk/react": "latest",
+    "@google/genai": "^2.10.0",
+    "@supabase/supabase-js": "^2.110.5",
+    "ai": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.0",
+    "@types/react": "19.2.17",
+    "typescript": "6.0.3"
+  }
+}
