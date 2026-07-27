@@ -1669,7 +1669,7 @@ body {
   }
 
   .dashboard-controls {
-    align-items: stretch;
+    align-items: end;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 48px;
     width: 100%;
@@ -1682,6 +1682,12 @@ body {
 
   .city-picker input {
     width: 100%;
+  }
+
+  .refresh-button {
+    align-self: end;
+    width: 48px;
+    height: 48px;
   }
 
   .dashboard-grid,
@@ -1831,6 +1837,49 @@ body {
 .mobile-menu-button,
 .mobile-nav-backdrop {
   display: none;
+}
+
+@media (max-width: 760px) {
+  .mobile-menu-button {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 40;
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    border: 1px solid #303040;
+    border-radius: 8px;
+    background: rgb(16 16 23 / 94%);
+    color: #ffffff;
+    font-size: 1.2rem;
+    backdrop-filter: blur(14px);
+  }
+
+  .mobile-nav-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    display: block;
+    border: 0;
+    background: rgb(0 0 0 / 52%);
+  }
+
+  .side-nav {
+    z-index: 36;
+    max-width: min(82vw, 248px);
+    transform: translateX(-102%);
+    transition: transform 180ms ease;
+  }
+
+  .side-nav.open {
+    transform: translateX(0);
+  }
+
+  .side-nav-links {
+    overflow-y: auto;
+  }
 }
 
 a {
