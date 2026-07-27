@@ -26,7 +26,7 @@ const examples = [
 ];
 
 function renderInline(text: string) {
-  return text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g).map((part, index) => {
+  return text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|https?:\/\/[^\s)]+)/g).map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return <strong key={index}>{part.slice(2, -2)}</strong>;
     }
@@ -36,6 +36,14 @@ function renderInline(text: string) {
       return (
         <a href={link[2]} key={index} rel="noreferrer" target="_blank">
           {link[1]}
+        </a>
+      );
+    }
+
+    if (/^https?:\/\//.test(part)) {
+      return (
+        <a href={part} key={index} rel="noreferrer" target="_blank">
+          {part}
         </a>
       );
     }

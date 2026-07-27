@@ -14,56 +14,46 @@ if (enableSearchGrounding) {
 
 export const maxDuration = 60;
 
-const today = new Intl.DateTimeFormat("pl-PL", {
-  dateStyle: "long",
-  timeZone: "Europe/Warsaw",
-}).format(new Date());
-
 const systemPrompt = `
-Jestes profesjonalnym analitykiem biznesowym. Gdy uzytkownik poda temat,
-AUTONOMICZNIE zbierasz informacje i piszesz raport.
-
-Dzisiejsza data: ${today}
+Jestes analitykiem konkurencji. Gdy uzytkownik poda nazwy firm,
+AUTONOMICZNIE zbierasz informacje i porownujesz je.
 
 ## TWOJ PROCES:
-1. Przeanalizuj temat - co trzeba zbadac?
-2. Szukaj danych: Google Search, Wikipedia, strony branzowe.
-3. Zbierz fakty, liczby, statystyki.
-4. Napisz raport w profesjonalnym formacie.
+1. Dla KAZDEJ firmy: szukaj informacji (Google, Wikipedia, strony firmowe).
+2. Zbierz: opis, branza, wielkosc, produkty, ceny, mocne i slabe strony.
+3. Stworz tabele porownawcza.
+4. Napisz rekomendacje w kontekscie potrzeb uzytkownika.
 
-## FORMAT RAPORTU:
+## FORMAT:
 
-# Raport: [TEMAT]
-Data: ${today}
-Autor: Agent AI
+# Analiza konkurencji
 
-## Streszczenie (Executive Summary)
-[3-4 zdania - kluczowe wnioski]
+## Porownanie
 
-## 1. Wprowadzenie
-[Kontekst, dlaczego ten temat jest wazny]
+| Aspekt | [Firma 1] | [Firma 2] | [Firma 3] |
+|--------|-----------|-----------|-----------|
+| Branza | ... | ... | ... |
+| Wielkosc | ... | ... | ... |
+| Glowny produkt | ... | ... | ... |
+| Mocne strony | ... | ... | ... |
+| Slabe strony | ... | ... | ... |
+| Ceny (orientacyjne) | ... | ... | ... |
 
-## 2. Kluczowe dane i fakty
-[Wylistowane punkty z danymi - ze źródłami]
+## Szczegolowa analiza
+[Rozwiniecie dla kazdej firmy - 3-4 zdania]
 
-## 3. Analiza
-[Interpretacja danych, trendy, porownania]
+## Rekomendacja
+[Ktora firma jest najlepsza i dlaczego - w kontekscie uzytkownika]
 
-## 4. Wnioski i rekomendacje
-[Co z tego wynika? Co robic?]
-
-## Źródła
-[Lista użytych źródeł z linkami]
+## Zrodla
+[Linki do stron firmowych i artykulow]
 
 ZASADY:
 - Uzywaj prawdziwych danych z narzedzi: Google Search, Wikipedia lub readWebPage.
 - Gdy Google Search jest niedostepny, uzyj Wikipedia i konkretnych URL podanych przez uzytkownika; nie udawaj, ze wykonales Google Search.
-- Podawaj źródła przy każdym ważnym fakcie.
-- W sekcji Zrodla kazda pozycja musi zawierac klikalny link w formacie Markdown: [nazwa zrodla](https://adres-url).
-- Nie dodawaj zrodla bez URL-a. Jesli masz tylko nazwe bez adresu, znajdz konkretny URL przez narzedzia albo pomin taka pozycje.
-- Badz konkretny: liczby, daty, nazwy.
-- Raport powinien miec 500-1000 slow.
-- Nie wymyslaj statystyk - szukaj albo jasno oznacz brak danych.
+- Podawaj zrodla przy kazdym waznym fakcie.
+- Przy cenach oznacz walute, zakres i date lub napisz, ze cena wymaga weryfikacji.
+- Nie wymyslaj danych. Jesli nie masz pewnej informacji, oznacz ja jako "do weryfikacji".
 `;
 
 async function fetchWithTimeout(url: string, init: RequestInit = {}) {
@@ -95,29 +85,6 @@ function connectionError(error: unknown) {
   }`;
 }
 
-function calculateExpression(expression: string) {
-  if (/(import|require|eval|process)/i.test(expression)) {
-    return "Wyrazenie zawiera niedozwolone znaki.";
-  }
-
-  if (!/^[\d\s+\-*/().,%]+$/.test(expression)) {
-    return "Wyrazenie zawiera niedozwolone znaki.";
-  }
-
-  try {
-    const normalized = expression.replace(/,/g, ".").replace(/%/g, "/100");
-    const result = Function(`"use strict"; return (${normalized});`)();
-
-    if (typeof result !== "number" || !Number.isFinite(result)) {
-      return `Nie moge obliczyc: ${expression}`;
-    }
-
-    return result;
-  } catch {
-    return `Nie moge obliczyc: ${expression}`;
-  }
-}
-
 function extractReadableText(html: string) {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -141,7 +108,7 @@ async function readWebPage(url: string) {
     const response = await fetchWithTimeout(url, {
       headers: {
         "user-agent":
-          "Mozilla/5.0 (compatible; MojAgentReport/1.0; +https://localhost)",
+          "Mozilla/5.0 (compatible; MojAgentCompetitor/1.0; +https://localhost)",
       },
     });
 
@@ -177,7 +144,7 @@ async function searchWikipedia(query: string, language: string) {
   try {
     response = await fetchWithTimeout(url, {
       headers: {
-        "api-user-agent": "MojAgentReport/1.0 (local workshop)",
+        "api-user-agent": "MojAgentCompetitor/1.0 (local workshop)",
       },
     });
   } catch (error) {
@@ -215,13 +182,29 @@ async function searchWikipedia(query: string, language: string) {
   };
 }
 
-export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as { topic?: unknown };
-  const topic = typeof body.topic === "string" ? body.topic.trim() : "";
+function normalizeCompanies(input: unknown) {
+  if (!Array.isArray(input)) {
+    return [];
+  }
 
-  if (!topic) {
+  return input
+    .filter((company): company is string => typeof company === "string")
+    .map((company) => company.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+export async function POST(req: Request) {
+  const body = (await req.json().catch(() => ({}))) as {
+    companies?: unknown;
+    context?: unknown;
+  };
+  const companies = normalizeCompanies(body.companies);
+  const context = typeof body.context === "string" ? body.context.trim() : "";
+
+  if (companies.length < 2) {
     return Response.json(
-      { error: "Przeslij JSON w formacie { topic: string }." },
+      { error: "Podaj co najmniej dwie firmy do porownania." },
       { status: 400 },
     );
   }
@@ -229,20 +212,11 @@ export async function POST(req: Request) {
   const result = streamText({
     model: google("gemini-3.1-flash-lite"),
     system: systemPrompt,
-    prompt: `Napisz raport biznesowy na temat: ${topic}`,
-    stopWhen: stepCountIs(8),
+    prompt: `Porownaj firmy: ${companies.join(", ")}.${
+      context ? `\nKontekst uzytkownika: ${context}` : ""
+    }`,
+    stopWhen: stepCountIs(10),
     tools: {
-      calculator: tool({
-        description:
-          "Wykonuje obliczenia matematyczne, procenty, roznice i proste przeliczenia.",
-        inputSchema: z.object({
-          expression: z.string().describe("Wyrazenie, np. 1250 * 0.23."),
-        }),
-        execute: async ({ expression }) => ({
-          expression,
-          result: calculateExpression(expression),
-        }),
-      }),
       readWebPage: tool({
         description:
           "Pobiera i czyta tekst strony WWW. Uzywaj dla konkretnych URL.",
