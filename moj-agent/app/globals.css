@@ -1435,6 +1435,29 @@
     padding-left: 0;
   }
 
+  .email-triage-shell {
+    padding: 72px 12px 24px;
+  }
+
+  .email-triage-header,
+  .email-triage-summary,
+  .email-card-top,
+  .email-draft > div {
+    align-items: stretch;
+  }
+
+  .email-triage-form button {
+    width: 100%;
+  }
+
+  .email-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .email-card dl div {
+    grid-template-columns: 1fr;
+  }
+
   .mobile-menu-button {
     position: fixed;
     top: 12px;
@@ -1759,6 +1782,428 @@ input:disabled,
 textarea:disabled {
   cursor: not-allowed;
   opacity: 0.65;
+}
+
+.email-triage-shell {
+  background:
+    radial-gradient(circle at 92% 12%, rgb(52 37 91 / 36%), transparent 34%),
+    #0a0a0c;
+  min-height: 100vh;
+  padding: 20px 18px 32px;
+}
+
+.email-triage-panel {
+  display: grid;
+  width: min(100%, 1080px);
+  gap: 14px;
+  margin: 0 auto;
+}
+
+.email-triage-header {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 8px;
+  background:
+    linear-gradient(120deg, rgb(35 39 83 / 92%), rgb(16 57 66 / 84%)),
+    #15151d;
+  padding: 24px 30px;
+}
+
+.email-triage-header h1,
+.email-triage-header p {
+  margin: 0;
+}
+
+.email-triage-kicker {
+  color: #83f2b4;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.email-triage-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.email-triage-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 4px;
+  background: #f1cfe2;
+  color: #23305a;
+  font-size: 1rem;
+}
+
+.email-triage-header h1 {
+  color: #ffffff;
+  font-size: clamp(2.1rem, 4vw, 3.1rem);
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.email-triage-header p {
+  color: #cfd5e9;
+  line-height: 1.5;
+}
+
+.email-input-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 8px;
+  background: #101014;
+  padding: 18px;
+}
+
+.email-input-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.email-input-top strong {
+  color: #ffffff;
+}
+
+.email-example-button,
+.email-triage-form button,
+.email-draft button {
+  border: 1px solid #303040;
+  border-radius: 8px;
+  background: #171721;
+  color: #ededed;
+  font-weight: 800;
+  min-height: 42px;
+  padding: 0 13px;
+}
+
+.email-triage-form {
+  display: grid;
+  gap: 14px;
+}
+
+.email-triage-form textarea {
+  min-height: 250px;
+  resize: vertical;
+  border: 1px solid #292934;
+  border-radius: 8px;
+  background: #070a10;
+  color: #ededed;
+  line-height: 1.5;
+  outline: none;
+  padding: 14px;
+}
+
+.email-triage-form textarea::placeholder {
+  color: #707386;
+}
+
+.email-triage-form textarea:focus {
+  border-color: #6070d7;
+}
+
+.email-triage-form .email-analyze-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: fit-content;
+  border-color: transparent;
+  background:
+    linear-gradient(135deg, #a8ffe0, #86a8ff 48%, #f1cfe2),
+    #ededed;
+  box-shadow:
+    0 12px 32px rgb(101 126 255 / 22%),
+    inset 0 1px 0 rgb(255 255 255 / 58%);
+  color: #090b12;
+  min-height: 48px;
+  padding: 0 18px;
+}
+
+.email-triage-form .email-analyze-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.email-triage-error {
+  border: 1px solid rgba(255, 92, 122, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 92, 122, 0.12);
+  color: #ffb6c4;
+  margin: 0;
+  padding: 12px 14px;
+}
+
+.email-triage-results {
+  display: grid;
+  gap: 14px;
+}
+
+.email-triage-summary {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 88% 10%, rgb(66 36 120 / 30%), transparent 34%),
+    #101014;
+  padding: 18px;
+}
+
+.email-summary-heading span {
+  color: #83f2b4;
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.email-summary-heading h2 {
+  color: #ffffff;
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.email-summary-status {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  border: 1px solid rgb(131 242 180 / 24%);
+  border-radius: 999px;
+  background: rgb(43 155 69 / 34%);
+  color: #b7f6c7;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 5px 10px;
+}
+
+.email-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.email-summary-tile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 2px 10px;
+  min-height: 58px;
+  border: 1px solid #343047;
+  border-radius: 8px;
+  background: rgb(20 19 28 / 78%);
+  padding: 10px 14px;
+}
+
+.email-summary-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+}
+
+.email-summary-dot.red {
+  background: #ff4d75;
+}
+
+.email-summary-dot.yellow {
+  background: #ffd164;
+}
+
+.email-summary-dot.green {
+  background: #55df91;
+}
+
+.email-summary-dot.gray {
+  background: #b8b8c7;
+}
+
+.email-summary-tile strong {
+  color: #ffffff;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.email-summary-tile small {
+  color: #c9c9df;
+  font-weight: 800;
+  grid-column: 2;
+}
+
+.email-triage-cards {
+  display: grid;
+  gap: 12px;
+}
+
+.email-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #343047;
+  border-left-width: 6px;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgb(23 22 31 / 95%), rgb(12 14 22 / 98%)),
+    #111119;
+  padding: 16px;
+}
+
+.email-card.priority-high {
+  border-left-color: #d95757;
+}
+
+.email-card.priority-medium {
+  border-left-color: #d6a935;
+}
+
+.email-card.priority-low {
+  border-left-color: #2b9b45;
+}
+
+.email-card.priority-spam {
+  border-left-color: #8b8b99;
+}
+
+.email-card.priority-unknown {
+  border-left-color: #6268d9;
+}
+
+.email-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.email-card-top span {
+  color: #a7a7b3;
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.email-card h2,
+.email-card h3 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.email-card h2 {
+  font-size: 1.25rem;
+  margin-top: 4px;
+}
+
+.email-card-top strong {
+  border: 1px solid #303040;
+  border-radius: 999px;
+  background: #171721;
+  color: #ffffff;
+  flex: 0 0 auto;
+  padding: 6px 10px;
+}
+
+.email-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.email-card dl div {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.email-card dt {
+  color: #a7a7b3;
+  font-weight: 800;
+}
+
+.email-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.email-draft {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #303040;
+  padding-top: 12px;
+}
+
+.email-draft > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.email-draft blockquote {
+  border-left: 3px solid #8f96ff;
+  color: #d9dbea;
+  line-height: 1.55;
+  margin: 0;
+  padding: 4px 0 4px 12px;
+  white-space: pre-wrap;
+}
+
+.email-triage-stream,
+.email-triage-final {
+  overflow-x: auto;
+  border: 1px solid #303040;
+  border-radius: 8px;
+  background: #111119;
+  color: #d9dbea;
+  line-height: 1.55;
+  margin: 0;
+  padding: 14px;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 760px) {
+  .email-triage-shell {
+    padding: 72px 12px 24px;
+  }
+
+  .email-triage-header,
+  .email-input-card,
+  .email-triage-summary,
+  .email-card {
+    padding: 14px;
+  }
+
+  .email-input-top,
+  .email-card-top,
+  .email-draft > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .email-triage-form .email-analyze-button {
+    width: 100%;
+  }
+
+  .email-summary-status {
+    position: static;
+    width: fit-content;
+  }
+
+  .email-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .email-card dl div {
+    grid-template-columns: 1fr;
+  }
 }
 
 .chat-shell {
