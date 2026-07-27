@@ -19,6 +19,7 @@ const navItems = [
   { href: "/email-triage", icon: "\u{1F4E7}", label: "E-mail Triage" },
   { href: "/report", icon: "\u{1F4CA}", label: "Raporty" },
   { href: "/competitor", icon: "\u{1F3E2}", label: "Konkurencja" },
+  { href: "/social", icon: "\u{1F4F1}", label: "Posty" },
   { href: "/travel", icon: "\u{2708}\u{FE0F}", label: "Podroze" },
   { href: "/generate", icon: "\u{1F3A8}", label: "Grafiki" },
   { href: "/vision", icon: "\u{1F441}\u{FE0F}", label: "Vision" },
