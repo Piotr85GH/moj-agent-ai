@@ -5,6 +5,27 @@ function cleanTitle(topic: string) {
   return title ? `Raport: ${title}` : "Raport biznesowy";
 }
 
+export async function GET(req: Request) {
+  const auth = await requireSupabaseUser(req);
+
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  const { data, error } = await auth.supabase
+    .from("reports")
+    .select("id, title, topic, content, word_count, created_at")
+    .eq("user_id", auth.user.id)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  return Response.json({ reports: data ?? [] });
+}
+
 export async function POST(req: Request) {
   const auth = await requireSupabaseUser(req);
 

@@ -1,7 +1,22 @@
 "use client";
 
-import { type FormEvent, type ReactNode, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useAuth } from "../auth-provider";
+
+type SavedReport = {
+  id: string;
+  title: string | null;
+  topic: string;
+  content: string;
+  word_count: number;
+  created_at: string;
+};
 
 const examples = [
   "Rynek AI w Polsce - trendy, firmy, prognozy na 2026",
@@ -142,12 +157,53 @@ export default function ReportPage() {
   const [error, setError] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
+  const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
+  const [selectedReport, setSelectedReport] = useState<SavedReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const wordCount = useMemo(
     () => report.trim().split(/\s+/).filter(Boolean).length,
     [report],
   );
+
+  async function loadSavedReports() {
+    setIsLoadingSaved(true);
+
+    try {
+      const accessToken = await getAccessToken();
+      const response = await fetch("/api/reports", {
+        headers: {
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        reports?: SavedReport[];
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Nie udalo sie pobrac raportow.");
+      }
+
+      setSavedReports(data.reports ?? []);
+      setSelectedReport((current) => {
+        if (!current) {
+          return null;
+        }
+
+        return data.reports?.find((item) => item.id === current.id) ?? null;
+      });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Nieznany blad.");
+    } finally {
+      setIsLoadingSaved(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadSavedReports();
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -231,6 +287,7 @@ export default function ReportPage() {
       }
 
       setSaveStatus("Zapisano raport w bazie.");
+      await loadSavedReports();
       window.setTimeout(() => setSaveStatus(""), 2200);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Nieznany blad.");
@@ -281,6 +338,80 @@ export default function ReportPage() {
         </section>
 
         {error && <p className="report-error">{error}</p>}
+
+        <section className="report-saved-card" aria-label="Zapisane raporty">
+          <div className="report-saved-top">
+            <div>
+              <span>Baza raportow</span>
+              <h2>Zapisane raporty</h2>
+            </div>
+            <button
+              disabled={isLoadingSaved}
+              onClick={() => void loadSavedReports()}
+              type="button"
+            >
+              {isLoadingSaved ? "Odswiezam..." : "Odśwież"}
+            </button>
+          </div>
+
+          {savedReports.length === 0 ? (
+            <p className="report-saved-empty">
+              {isLoadingSaved
+                ? "Pobieram zapisane raporty..."
+                : "Nie masz jeszcze zapisanych raportow."}
+            </p>
+          ) : (
+            <div className="report-saved-layout">
+              <div className="report-saved-list">
+                {savedReports.map((savedReport) => (
+                  <button
+                    className={
+                      selectedReport?.id === savedReport.id ? "active" : ""
+                    }
+                    key={savedReport.id}
+                    onClick={() => setSelectedReport(savedReport)}
+                    type="button"
+                  >
+                    <strong>{savedReport.title ?? savedReport.topic}</strong>
+                    <span>
+                      {new Intl.DateTimeFormat("pl-PL", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }).format(new Date(savedReport.created_at))}
+                    </span>
+                    <small>{savedReport.word_count} slow</small>
+                  </button>
+                ))}
+              </div>
+
+              <article className="report-saved-preview">
+                {selectedReport ? (
+                  <>
+                    <div className="report-saved-preview-top">
+                      <div>
+                        <span>Podglad</span>
+                        <h3>{selectedReport.title ?? selectedReport.topic}</h3>
+                      </div>
+                      <button
+                        onClick={() => {
+                          void navigator.clipboard.writeText(
+                            selectedReport.content,
+                          );
+                        }}
+                        type="button"
+                      >
+                        Kopiuj
+                      </button>
+                    </div>
+                    <ReportMarkdown text={selectedReport.content} />
+                  </>
+                ) : (
+                  <p>Wybierz raport z listy, zeby zobaczyc podglad.</p>
+                )}
+              </article>
+            </div>
+          )}
+        </section>
 
         {(isLoading || report) && (
           <section className="report-result-card" aria-live="polite">
