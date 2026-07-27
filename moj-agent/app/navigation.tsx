@@ -17,6 +17,7 @@ const navItems = [
   { href: "/agent", icon: "\u{1F916}", label: "Agent" },
   { href: "/react", icon: "\u{1F504}", label: "ReAct" },
   { href: "/email-triage", icon: "\u{1F4E7}", label: "E-mail Triage" },
+  { href: "/report", icon: "\u{1F4CA}", label: "Raporty" },
   { href: "/travel", icon: "\u{2708}\u{FE0F}", label: "Podroze" },
   { href: "/generate", icon: "\u{1F3A8}", label: "Grafiki" },
   { href: "/vision", icon: "\u{1F441}\u{FE0F}", label: "Vision" },

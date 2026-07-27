@@ -98,6 +98,42 @@ export type Database = {
           },
         ];
       };
+      reports: {
+        Row: {
+          id: string;
+          created_at: string;
+          updated_at: string;
+          user_id: string;
+          topic: string;
+          title: string | null;
+          content: string;
+          word_count: number;
+          metadata: Json;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          user_id: string;
+          topic: string;
+          title?: string | null;
+          content: string;
+          word_count?: number;
+          metadata?: Json;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          user_id?: string;
+          topic?: string;
+          title?: string | null;
+          content?: string;
+          word_count?: number;
+          metadata?: Json;
+        };
+        Relationships: [];
+      };
       user_profiles: {
         Row: {
           id: string;
