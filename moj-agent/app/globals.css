@@ -1640,6 +1640,76 @@ body {
   color: #ffffff;
 }
 
+@media (max-width: 760px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .app-content {
+    padding-left: 0;
+  }
+
+  .dashboard-shell {
+    width: 100%;
+    padding: 72px 12px 24px;
+  }
+
+  .dashboard-hero {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .dashboard-hero h1 {
+    font-size: clamp(2.15rem, 14vw, 3.2rem);
+  }
+
+  .dashboard-hero .quote-line {
+    max-width: none;
+  }
+
+  .dashboard-controls {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 48px;
+    width: 100%;
+  }
+
+  .city-picker {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .city-picker input {
+    width: 100%;
+  }
+
+  .dashboard-grid,
+  .quick-actions,
+  .dashboard-card dl {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-card {
+    min-height: auto;
+    padding: 16px;
+  }
+
+  .weather-main {
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .weather-main strong {
+    font-size: clamp(2.2rem, 13vw, 3.6rem);
+  }
+
+  .card-topline {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .app-content:has(.login-shell),
 .app-content:has(.auth-loading) {
   padding-left: 0;
