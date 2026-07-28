@@ -312,7 +312,12 @@ function fallbackBriefing({
     "data" in news
       ? news.data
           .slice(0, 3)
-          .map((item) => `- ${item.title}${item.source ? ` (${item.source})` : ""}`)
+          .map((item) => {
+            const source = item.source ? ` (${item.source})` : "";
+            const link = item.url ? ` - ${item.url}` : "";
+
+            return `- ${item.title}${source}${link}`;
+          })
           .join("\n")
       : `- Nie udalo sie pobrac wiadomosci: ${news.error}`;
 
@@ -360,7 +365,7 @@ Format:
 - USD: [kurs] PLN
 
 ## Wiadomosci
-[3-5 najwazniejszych punktow]
+[3-5 najwazniejszych punktow. Przy kazdym punkcie dodaj link do zrodla, jesli jest dostepny w danych.]
 
 ## Dzisiejszy dzien
 - Dzien tygodnia: [...]
@@ -370,7 +375,9 @@ Format:
 [Krotka, pozytywna porada na dzien]
 
 Nie wymyslaj danych liczbowych. Jesli ktorys serwis zwrocil blad, ujmij to krotko w briefingu.`,
-      prompt: formatInputForModel(input),
+      prompt: `${formatInputForModel(input)}
+
+Zasada dla sekcji Wiadomosci: jesli news ma pole url, umiesc link w tym samym punkcie listy, najlepiej jako [zrodlo](URL).`,
     });
 
     return result.text.trim() || fallbackBriefing(input);

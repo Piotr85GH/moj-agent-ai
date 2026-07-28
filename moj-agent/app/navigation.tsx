@@ -8,6 +8,7 @@ import { useAuth } from "./auth-provider";
 const navItems = [
   { href: "/", icon: "\u{1F3E0}", label: "Dashboard" },
   { href: "/chat", icon: "\u{1F4AC}", label: "Chat" },
+  { href: "/briefings", icon: "\u{1F4F0}", label: "Briefingi" },
   { href: "/history", icon: "\u{1F4DC}", label: "Historia" },
   { href: "/upload", icon: "\u{1F4DA}", label: "Baza wiedzy" },
   { href: "/think", icon: "\u{1F9E0}", label: "Myslenie" },
