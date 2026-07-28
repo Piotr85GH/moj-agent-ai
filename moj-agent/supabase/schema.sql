@@ -60,6 +60,15 @@ create table if not exists public.recipes (
   metadata jsonb not null default '{}'::jsonb
 );
 
+create table if not exists public.briefings (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  content text not null,
+  date date not null,
+  user_id uuid references auth.users(id) on delete cascade,
+  metadata jsonb not null default '{}'::jsonb
+);
+
 alter table public.conversations add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.documents add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.reports add column if not exists user_id uuid references auth.users(id) on delete cascade;
@@ -72,6 +81,8 @@ alter table public.recipes add column if not exists products text[] not null def
 alter table public.recipes add column if not exists context text;
 alter table public.recipes add column if not exists word_count integer not null default 0;
 alter table public.recipes add column if not exists metadata jsonb not null default '{}'::jsonb;
+alter table public.briefings add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.briefings add column if not exists metadata jsonb not null default '{}'::jsonb;
 alter table public.user_profiles add column if not exists display_name text;
 alter table public.user_profiles alter column id set default auth.uid();
 update public.user_profiles
@@ -98,6 +109,7 @@ alter table public.user_profiles enable row level security;
 alter table public.documents enable row level security;
 alter table public.reports enable row level security;
 alter table public.recipes enable row level security;
+alter table public.briefings enable row level security;
 
 create index if not exists messages_conversation_id_idx
   on public.messages(conversation_id);
@@ -122,6 +134,12 @@ create index if not exists recipes_user_id_created_at_idx
 
 create index if not exists recipes_user_id_title_idx
   on public.recipes(user_id, title);
+
+create index if not exists briefings_date_idx
+  on public.briefings(date desc);
+
+create index if not exists briefings_user_id_date_idx
+  on public.briefings(user_id, date desc);
 
 drop policy if exists "Users can read own conversations" on public.conversations;
 create policy "Users can read own conversations"
@@ -251,6 +269,22 @@ create policy "Users can update own recipes"
 drop policy if exists "Users can delete own recipes" on public.recipes;
 create policy "Users can delete own recipes"
   on public.recipes for delete
+  using (auth.uid() = user_id);
+
+drop policy if exists "Cron can insert briefings" on public.briefings;
+drop policy if exists "Users can insert own briefings" on public.briefings;
+create policy "Users can insert own briefings"
+  on public.briefings for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can read own briefings" on public.briefings;
+create policy "Users can read own briefings"
+  on public.briefings for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can delete own briefings" on public.briefings;
+create policy "Users can delete own briefings"
+  on public.briefings for delete
   using (auth.uid() = user_id);
 
 create or replace function public.match_documents(

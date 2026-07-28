@@ -12,6 +12,33 @@ export type Database = {
   };
   public: {
     Tables: {
+      briefings: {
+        Row: {
+          id: string;
+          created_at: string;
+          content: string;
+          date: string;
+          user_id: string | null;
+          metadata: Json;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          content: string;
+          date: string;
+          user_id?: string | null;
+          metadata?: Json;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          content?: string;
+          date?: string;
+          user_id?: string | null;
+          metadata?: Json;
+        };
+        Relationships: [];
+      };
       conversations: {
         Row: {
           id: string;
