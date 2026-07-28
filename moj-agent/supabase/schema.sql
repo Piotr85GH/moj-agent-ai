@@ -69,6 +69,14 @@ create table if not exists public.briefings (
   metadata jsonb not null default '{}'::jsonb
 );
 
+create table if not exists public.webhook_events (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  type text not null check (type in ('feedback', 'alert', 'order')),
+  data jsonb not null default '{}'::jsonb,
+  analysis text not null
+);
+
 alter table public.conversations add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.documents add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.reports add column if not exists user_id uuid references auth.users(id) on delete cascade;
@@ -110,6 +118,7 @@ alter table public.documents enable row level security;
 alter table public.reports enable row level security;
 alter table public.recipes enable row level security;
 alter table public.briefings enable row level security;
+alter table public.webhook_events enable row level security;
 
 create index if not exists messages_conversation_id_idx
   on public.messages(conversation_id);
@@ -140,6 +149,12 @@ create index if not exists briefings_date_idx
 
 create index if not exists briefings_user_id_date_idx
   on public.briefings(user_id, date desc);
+
+create index if not exists webhook_events_created_at_idx
+  on public.webhook_events(created_at desc);
+
+create index if not exists webhook_events_type_created_at_idx
+  on public.webhook_events(type, created_at desc);
 
 drop policy if exists "Users can read own conversations" on public.conversations;
 create policy "Users can read own conversations"

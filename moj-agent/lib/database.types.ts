@@ -224,6 +224,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      webhook_events: {
+        Row: {
+          id: string;
+          created_at: string;
+          type: string;
+          data: Json;
+          analysis: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          type: string;
+          data?: Json;
+          analysis: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          type?: string;
+          data?: Json;
+          analysis?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
