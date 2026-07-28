@@ -36,7 +36,13 @@ function isAuthorized(request: Request) {
   const secret = process.env.WEBHOOK_SECRET;
 
   if (!secret) {
-    return { ok: true };
+    return {
+      ok: false,
+      response: Response.json(
+        { success: false, error: "Brakuje WEBHOOK_SECRET w .env.local." },
+        { status: 500 },
+      ),
+    };
   }
 
   const url = new URL(request.url);
