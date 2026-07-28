@@ -47,12 +47,31 @@ create table if not exists public.reports (
   metadata jsonb not null default '{}'::jsonb
 );
 
+create table if not exists public.recipes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  title text,
+  products text[] not null default '{}'::text[],
+  context text,
+  content text not null,
+  word_count integer not null default 0,
+  metadata jsonb not null default '{}'::jsonb
+);
+
 alter table public.conversations add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.documents add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.reports add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.reports add column if not exists updated_at timestamptz not null default now();
 alter table public.reports add column if not exists word_count integer not null default 0;
 alter table public.reports add column if not exists metadata jsonb not null default '{}'::jsonb;
+alter table public.recipes add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.recipes add column if not exists updated_at timestamptz not null default now();
+alter table public.recipes add column if not exists products text[] not null default '{}'::text[];
+alter table public.recipes add column if not exists context text;
+alter table public.recipes add column if not exists word_count integer not null default 0;
+alter table public.recipes add column if not exists metadata jsonb not null default '{}'::jsonb;
 alter table public.user_profiles add column if not exists display_name text;
 alter table public.user_profiles alter column id set default auth.uid();
 update public.user_profiles
@@ -66,16 +85,19 @@ where conversation_id in (
 delete from public.conversations where user_id is null;
 delete from public.documents where user_id is null;
 delete from public.reports where user_id is null;
+delete from public.recipes where user_id is null;
 
 alter table public.conversations alter column user_id set not null;
 alter table public.documents alter column user_id set not null;
 alter table public.reports alter column user_id set not null;
+alter table public.recipes alter column user_id set not null;
 
 alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
 alter table public.user_profiles enable row level security;
 alter table public.documents enable row level security;
 alter table public.reports enable row level security;
+alter table public.recipes enable row level security;
 
 create index if not exists messages_conversation_id_idx
   on public.messages(conversation_id);
@@ -94,6 +116,12 @@ create index if not exists reports_user_id_created_at_idx
 
 create index if not exists reports_user_id_topic_idx
   on public.reports(user_id, topic);
+
+create index if not exists recipes_user_id_created_at_idx
+  on public.recipes(user_id, created_at desc);
+
+create index if not exists recipes_user_id_title_idx
+  on public.recipes(user_id, title);
 
 drop policy if exists "Users can read own conversations" on public.conversations;
 create policy "Users can read own conversations"
@@ -202,6 +230,27 @@ create policy "Users can update own reports"
 drop policy if exists "Users can delete own reports" on public.reports;
 create policy "Users can delete own reports"
   on public.reports for delete
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can read own recipes" on public.recipes;
+create policy "Users can read own recipes"
+  on public.recipes for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert own recipes" on public.recipes;
+create policy "Users can insert own recipes"
+  on public.recipes for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update own recipes" on public.recipes;
+create policy "Users can update own recipes"
+  on public.recipes for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete own recipes" on public.recipes;
+create policy "Users can delete own recipes"
+  on public.recipes for delete
   using (auth.uid() = user_id);
 
 create or replace function public.match_documents(
