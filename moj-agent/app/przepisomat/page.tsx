@@ -94,7 +94,7 @@ function RecipeMarkdown({ text }: { text: string }) {
     const heading = /^(#{1,3})\s+(.+)$/.exec(line);
     if (heading) {
       const level = heading[1].length;
-      const content = renderInline(heading[2]);
+      const content = renderInline(polishRecipeHeading(heading[2]));
 
       blocks.push(
         level === 1 ? (
@@ -122,14 +122,48 @@ function RecipeMarkdown({ text }: { text: string }) {
 
     const listItem = /^[-*]\s+(.+)$/.exec(line);
     if (listItem) {
-      blocks.push(<li key={index}>{renderInline(listItem[1])}</li>);
+      blocks.push(<li key={index}>{renderInline(polishRecipeLabels(listItem[1]))}</li>);
       continue;
     }
 
-    blocks.push(<p key={index}>{renderInline(line)}</p>);
+    blocks.push(<p key={index}>{renderInline(polishRecipeLabels(line))}</p>);
   }
 
   return <div className="recipe-markdown">{blocks}</div>;
+}
+
+function polishRecipeHeading(text: string) {
+  return text
+    .replace(/^Skladniki$/i, "Składniki")
+    .replace(/^Wskazowki$/i, "Wskazówki")
+    .replace(/^Zrodla$/i, "Źródła")
+    .replace(/^Trudnosc$/i, "Trudność")
+    .replace(/^Przygotowanie$/i, "Przygotowanie")
+    .replace(/^Czas i porcje$/i, "Czas i porcje")
+    .replace(/^Dlaczego ten przepis$/i, "Dlaczego ten przepis");
+}
+
+function polishRecipeLabels(text: string) {
+  return text
+    .replace(/^Trudnosc:/i, "Trudność:")
+    .replace(/^Latwe$/i, "Łatwe")
+    .replace(/^Srednie$/i, "Średnie")
+    .replace(/\bzrodlo\b/gi, "źródło")
+    .replace(/\bzrodla\b/gi, "źródła")
+    .replace(/\bskladnik\b/gi, "składnik")
+    .replace(/\bskladniki\b/gi, "składniki");
+}
+
+function polishRecipeText(text: string) {
+  return text
+    .replace(/^(#{1,3}) Skladniki$/gim, "$1 Składniki")
+    .replace(/^(#{1,3}) Wskazowki$/gim, "$1 Wskazówki")
+    .replace(/^(#{1,3}) Zrodla$/gim, "$1 Źródła")
+    .replace(/^(-\s*)Trudnosc:/gim, "$1Trudność:")
+    .replace(/\bzrodlo\b/gi, "źródło")
+    .replace(/\bzrodla\b/gi, "źródła")
+    .replace(/\bskladnik\b/gi, "składnik")
+    .replace(/\bskladniki\b/gi, "składniki");
 }
 
 function recipeTitle(text: string, products: string[]) {
@@ -144,7 +178,7 @@ function exportRecipePdf(title: string, content: string) {
     return;
   }
 
-  const htmlContent = escapeHtml(content)
+  const htmlContent = escapeHtml(polishRecipeText(content))
     .replace(/^# (.+)$/gm, "<h1>$1</h1>")
     .replace(/^## (.+)$/gm, "<h2>$1</h2>")
     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
