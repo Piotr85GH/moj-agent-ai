@@ -384,13 +384,20 @@ function createPreview(content: string) {
 }
 
 function isAuthorized(request: Request) {
-  const secret = process.env.CRON_SERVICE;
+  const secret =
+    process.env.CRONE_SECRET ??
+    process.env.CRON_SERVICE ??
+    process.env.CRON_SECRET;
 
   if (!secret) {
     return {
       ok: false,
       response: Response.json(
-        { success: false, error: "Brakuje CRON_SERVICE w .env.local." },
+        {
+          success: false,
+          error:
+            "Brakuje CRONE_SECRET, CRON_SERVICE albo CRON_SECRET w .env.local.",
+        },
         { status: 500 },
       ),
     };
