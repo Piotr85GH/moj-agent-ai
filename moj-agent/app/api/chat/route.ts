@@ -2,6 +2,7 @@ import { google } from "@ai-sdk/google";
 import { GoogleGenAI, Modality } from "@google/genai";
 import {
   convertToModelMessages,
+  createUIMessageStream,
   createUIMessageStreamResponse,
   stepCountIs,
   streamText,
@@ -40,6 +41,37 @@ type UserProfilePayload = {
   display_name?: string | null;
   preferences?: Json;
 };
+
+const blockedMessage =
+  "Ta wiadomosc zostala zablokowana z powodow bezpieczenstwa.";
+const outputBlockedMessage =
+  "Przepraszam, nie moge udostepnic tych informacji.";
+const rateLimitMaxMessages = 50;
+const rateLimitWindowMs = 60 * 60 * 1000;
+const messageLog = new Map<string, number[]>();
+const inputBlacklist = [
+  "ignore previous",
+  "system prompt",
+  "ignore instructions",
+  "reveal",
+  "show me your",
+  "translate your prompt",
+];
+const outputLeakPatterns = [
+  /api[_-]?key/i,
+  /google[_-]?api[_-]?key/i,
+  /supabase[_-]?url/i,
+  /supabase[_-]?anon[_-]?key/i,
+  /next_public_supabase/i,
+  /system prompt/i,
+  /#\s*marta\s*-\s*profesjonalny doradca podatkowy/i,
+  /##\s*baza wiedzy firmy/i,
+  /#\s*agent ai\s*-\s*pelna moc/i,
+  /#\s*agent vision/i,
+  /#\s*agent z wyszukiwarka/i,
+  /##\s*personalizacja/i,
+  /google_search jest domyslnie wylaczony kosztowo/i,
+];
 
 const chatModels: Record<ChatModel, readonly string[]> = {
   flash: ["gemini-3.1-flash-lite"],
@@ -344,6 +376,194 @@ function getMessageText(parts: UIMessage["parts"]) {
     .join("");
 }
 
+function sanitizeText(text: string) {
+  return text
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .trim();
+}
+
+function sanitizeMessages(messages: UIMessage[]) {
+  return messages.map((message) => ({
+    ...message,
+    parts: message.parts.map((part) =>
+      part.type === "text" ? { ...part, text: sanitizeText(part.text) } : part,
+    ),
+  }));
+}
+
+function validateLatestUserInput(messages: UIMessage[]) {
+  const latestUserMessage = [...messages]
+    .reverse()
+    .find((message) => message.role === "user");
+  const text = latestUserMessage ? getMessageText(latestUserMessage.parts) : "";
+  const normalized = text.toLowerCase();
+
+  if (text.length > 2000) {
+    return false;
+  }
+
+  return !inputBlacklist.some((phrase) => normalized.includes(phrase));
+}
+
+function getRateLimitKey(
+  req: Request,
+  authenticatedUserId?: string,
+  bodyUserId?: string,
+) {
+  if (authenticatedUserId) {
+    return `user:${authenticatedUserId}`;
+  }
+
+  if (bodyUserId) {
+    return `client-user:${bodyUserId}`;
+  }
+
+  const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const realIp = req.headers.get("x-real-ip")?.trim();
+
+  return `ip:${forwardedFor || realIp || "local"}`;
+}
+
+function checkRateLimit(key: string) {
+  const now = Date.now();
+  const windowStart = now - rateLimitWindowMs;
+  const recentTimestamps = (messageLog.get(key) ?? []).filter(
+    (timestamp) => timestamp > windowStart,
+  );
+
+  if (recentTimestamps.length >= rateLimitMaxMessages) {
+    const retryAt = recentTimestamps[0] + rateLimitWindowMs;
+    const retryMinutes = Math.max(1, Math.ceil((retryAt - now) / 60000));
+
+    messageLog.set(key, recentTimestamps);
+
+    return {
+      allowed: false,
+      message: `Osiagnales limit wiadomosci (50/h). Sprobuj za ${retryMinutes} min.`,
+    };
+  }
+
+  recentTimestamps.push(now);
+  messageLog.set(key, recentTimestamps);
+
+  return { allowed: true };
+}
+
+function containsOutputLeak(text: string) {
+  return outputLeakPatterns.some((pattern) => pattern.test(text));
+}
+
+function createAssistantTextResponse(text: string, originalMessages: UIMessage[]) {
+  const id = `security-${Date.now()}`;
+
+  return createUIMessageStreamResponse({
+    stream: createUIMessageStream({
+      originalMessages,
+      execute({ writer }) {
+        writer.write({ type: "text-start", id });
+        writer.write({ type: "text-delta", id, delta: text });
+        writer.write({ type: "text-end", id });
+      },
+    }),
+  });
+}
+
+function filterOutputStream(stream: ReadableStream<TextStreamPart<any>>) {
+  let reader: ReadableStreamDefaultReader<TextStreamPart<any>> | undefined;
+  let textId = `filtered-${Date.now()}`;
+  let bufferedText = "";
+  let didBlock = false;
+  const pending: TextStreamPart<any>[] = [];
+
+  function enqueueBufferedText() {
+    if (!bufferedText) {
+      return;
+    }
+
+    pending.push({ type: "text-start", id: textId } as TextStreamPart<any>);
+    pending.push({
+      type: "text-delta",
+      id: textId,
+      text: bufferedText,
+    } as TextStreamPart<any>);
+    pending.push({ type: "text-end", id: textId } as TextStreamPart<any>);
+    bufferedText = "";
+  }
+
+  function enqueueBlockedText() {
+    pending.push({ type: "text-start", id: textId } as TextStreamPart<any>);
+    pending.push({
+      type: "text-delta",
+      id: textId,
+      text: outputBlockedMessage,
+    } as TextStreamPart<any>);
+    pending.push({ type: "text-end", id: textId } as TextStreamPart<any>);
+  }
+
+  return new ReadableStream<TextStreamPart<any>>({
+    async pull(controller) {
+      if (pending.length > 0) {
+        controller.enqueue(pending.shift()!);
+        return;
+      }
+
+      reader ??= stream.getReader();
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          enqueueBufferedText();
+
+          if (pending.length > 0) {
+            controller.enqueue(pending.shift()!);
+            return;
+          }
+
+          controller.close();
+          return;
+        }
+
+        if (value.type === "text-start") {
+          textId = value.id;
+          continue;
+        }
+
+        if (value.type === "text-delta") {
+          bufferedText += value.text;
+
+          if (containsOutputLeak(bufferedText)) {
+            didBlock = true;
+            await reader.cancel().catch(() => undefined);
+            bufferedText = "";
+            enqueueBlockedText();
+            controller.enqueue(pending.shift()!);
+            return;
+          }
+
+          continue;
+        }
+
+        if (value.type === "text-end") {
+          continue;
+        }
+
+        if (value.type === "finish" && !didBlock) {
+          enqueueBufferedText();
+        }
+
+        pending.push(value);
+        controller.enqueue(pending.shift()!);
+        return;
+      }
+    },
+    async cancel() {
+      await reader?.cancel().catch(() => undefined);
+    },
+  });
+}
+
 function attachImageToLatestUserMessage(
   modelMessages: ModelMessage[],
   messages: UIMessage[],
@@ -644,6 +864,7 @@ export async function POST(req: Request) {
     mode,
     image,
     accessToken,
+    userId: bodyUserId,
     userProfile,
   }: {
     messages: UIMessage[];
@@ -651,6 +872,7 @@ export async function POST(req: Request) {
     mode?: "agent" | "search" | "vision";
     image?: string;
     accessToken?: string;
+    userId?: string;
     userProfile?: UserProfilePayload;
   } =
     await req.json();
@@ -659,10 +881,26 @@ export async function POST(req: Request) {
     data: { user },
   } = await profileClient.auth.getUser(accessToken);
   const authenticatedUserId = user?.id;
+  const sanitizedMessages = sanitizeMessages(messages);
+  const rateLimit = checkRateLimit(
+    getRateLimitKey(req, authenticatedUserId, bodyUserId),
+  );
+
+  if (!rateLimit.allowed) {
+    return createAssistantTextResponse(
+      rateLimit.message ?? "Osiagnales limit wiadomosci (50/h). Sprobuj pozniej.",
+      sanitizedMessages,
+    );
+  }
+
+  if (!validateLatestUserInput(sanitizedMessages)) {
+    return createAssistantTextResponse(blockedMessage, sanitizedMessages);
+  }
+
   const chatModel = getChatModel(model);
   const modelMessages = attachImageToLatestUserMessage(
-    await convertToModelMessages(messages),
-    messages,
+    await convertToModelMessages(sanitizedMessages),
+    sanitizedMessages,
     image,
   );
 
@@ -683,10 +921,12 @@ export async function POST(req: Request) {
     profileClient,
   });
 
+  const filteredStream = filterOutputStream(stream);
+
   return createUIMessageStreamResponse({
     stream: toUIMessageStream({
-      stream,
-      originalMessages: messages,
+      stream: filteredStream,
+      originalMessages: sanitizedMessages,
       sendSources: true,
     }),
   });
