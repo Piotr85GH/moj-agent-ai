@@ -144,21 +144,23 @@ function SafetyDiagnostics({
 }) {
   const toolInfo = message ? getToolDiagnostics(message.parts) : { counts: {}, errors: [] };
   const toolTotal = Object.values(toolInfo.counts).reduce((a, b) => a + b, 0);
-  const cappedSteps = Math.min(5, Math.max(0, Math.ceil(toolTotal / 2)));
-  const level = cappedSteps <= 3 ? "safe" : cappedSteps === 4 ? "warn" : "danger";
+  const progressSteps = isLoading
+    ? Math.min(4, Math.max(1, Math.ceil(toolTotal / 2)))
+    : message
+      ? 5
+      : 0;
+  const level = toolInfo.errors.length > 0 ? "warn" : "safe";
   const status = isLoading
     ? "W trakcie..."
-    : cappedSteps >= 5
-      ? "⚠️ Limit krokow"
-      : "✅ Status: Zadanie ukonczone";
+    : "Status: Zadanie ukonczone";
 
   return (
     <section className="safety-panel" aria-label="Diagnostyka">
       <h2>🛡️ Diagnostyka</h2>
       <div className={`safety-progress ${level}`}>
-        <span style={{ width: `${(cappedSteps / 5) * 100}%` }} />
+        <span style={{ width: `${(progressSteps / 5) * 100}%` }} />
       </div>
-      <p>Kroki: {cappedSteps}/5</p>
+      <p>Kroki: {progressSteps}/5</p>
       <p>
         Narzedzia:{" "}
         {Object.keys(toolInfo.counts).length
