@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { supabase } from "@/lib/supabase";
 
-const tables = ["conversations", "messages", "user_profiles"] as const;
+const tables = ["conversations", "messages", "user_profiles", "api_usage"] as const;
 
 export async function GET() {
   const checks = await Promise.all(

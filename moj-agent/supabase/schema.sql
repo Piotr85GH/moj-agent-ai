@@ -77,6 +77,16 @@ create table if not exists public.webhook_events (
   analysis text not null
 );
 
+create table if not exists public.api_usage (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  tokens_input integer not null default 0 check (tokens_input >= 0),
+  tokens_output integer not null default 0 check (tokens_output >= 0),
+  model text not null,
+  endpoint text not null
+);
+
 alter table public.conversations add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.documents add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.reports add column if not exists user_id uuid references auth.users(id) on delete cascade;
@@ -119,6 +129,7 @@ alter table public.reports enable row level security;
 alter table public.recipes enable row level security;
 alter table public.briefings enable row level security;
 alter table public.webhook_events enable row level security;
+alter table public.api_usage enable row level security;
 
 create index if not exists messages_conversation_id_idx
   on public.messages(conversation_id);
@@ -155,6 +166,9 @@ create index if not exists webhook_events_created_at_idx
 
 create index if not exists webhook_events_type_created_at_idx
   on public.webhook_events(type, created_at desc);
+
+create index if not exists api_usage_user_id_created_at_idx
+  on public.api_usage(user_id, created_at desc);
 
 drop policy if exists "Users can read own conversations" on public.conversations;
 create policy "Users can read own conversations"
@@ -301,6 +315,16 @@ drop policy if exists "Users can delete own briefings" on public.briefings;
 create policy "Users can delete own briefings"
   on public.briefings for delete
   using (auth.uid() = user_id);
+
+drop policy if exists "Users can read own api usage" on public.api_usage;
+create policy "Users can read own api usage"
+  on public.api_usage for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert own api usage" on public.api_usage;
+create policy "Users can insert own api usage"
+  on public.api_usage for insert
+  with check (auth.uid() = user_id);
 
 create or replace function public.match_documents(
   query_embedding vector,

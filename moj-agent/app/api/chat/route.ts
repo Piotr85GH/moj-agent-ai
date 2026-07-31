@@ -46,6 +46,9 @@ const blockedMessage =
   "Ta wiadomosc zostala zablokowana z powodow bezpieczenstwa.";
 const outputBlockedMessage =
   "Przepraszam, nie moge udostepnic tych informacji.";
+const tokenBudgetExceededMessage =
+  "Dzienny limit tokenow (10k) zostal wyczerpany. Wroc jutro!";
+const dailyTokenLimit = 10_000;
 const rateLimitMaxMessages = 50;
 const rateLimitWindowMs = 60 * 60 * 1000;
 const messageLog = new Map<string, number[]>();
@@ -76,6 +79,11 @@ const outputLeakPatterns = [
 const chatModels: Record<ChatModel, readonly string[]> = {
   flash: ["gemini-3.1-flash-lite"],
   pro: ["gemini-3.1-flash-lite"],
+};
+
+type TokenUsage = {
+  inputTokens?: number;
+  outputTokens?: number;
 };
 
 const knowledgePrompt = `
@@ -450,6 +458,70 @@ function checkRateLimit(key: string) {
   return { allowed: true };
 }
 
+function getTodayStartIso() {
+  const now = new Date();
+
+  now.setHours(0, 0, 0, 0);
+
+  return now.toISOString();
+}
+
+async function getDailyTokenUsage(
+  userId: string | undefined,
+  profileClient: AppSupabaseClient,
+) {
+  if (!userId) {
+    return 0;
+  }
+
+  const { data, error } = await profileClient
+    .from("api_usage")
+    .select("tokens_input, tokens_output")
+    .eq("user_id", userId)
+    .gte("created_at", getTodayStartIso());
+
+  if (error) {
+    console.warn("Nie udalo sie policzyc dziennego zuzycia tokenow.", error);
+    return 0;
+  }
+
+  return (data ?? []).reduce(
+    (total: number, row: { tokens_input?: number; tokens_output?: number }) =>
+      total + (row.tokens_input ?? 0) + (row.tokens_output ?? 0),
+    0,
+  );
+}
+
+async function logApiUsage({
+  endpoint,
+  model,
+  profileClient,
+  usage,
+  userId,
+}: {
+  endpoint: string;
+  model: string;
+  profileClient: AppSupabaseClient;
+  usage?: TokenUsage;
+  userId?: string;
+}) {
+  if (!userId || !usage) {
+    return;
+  }
+
+  const { error } = await profileClient.from("api_usage").insert({
+    user_id: userId,
+    tokens_input: usage.inputTokens ?? 0,
+    tokens_output: usage.outputTokens ?? 0,
+    model,
+    endpoint,
+  });
+
+  if (error) {
+    console.warn("Nie udalo sie zapisac zuzycia tokenow.", error);
+  }
+}
+
 function containsOutputLeak(text: string) {
   return outputLeakPatterns.some((pattern) => pattern.test(text));
 }
@@ -469,7 +541,10 @@ function createAssistantTextResponse(text: string, originalMessages: UIMessage[]
   });
 }
 
-function filterOutputStream(stream: ReadableStream<TextStreamPart<any>>) {
+function filterOutputStream(
+  stream: ReadableStream<TextStreamPart<any>>,
+  onUsage?: (usage: TokenUsage) => Promise<void> | void,
+) {
   let reader: ReadableStreamDefaultReader<TextStreamPart<any>> | undefined;
   let textId = `filtered-${Date.now()}`;
   let bufferedText = "";
@@ -549,8 +624,17 @@ function filterOutputStream(stream: ReadableStream<TextStreamPart<any>>) {
           continue;
         }
 
-        if (value.type === "finish" && !didBlock) {
-          enqueueBufferedText();
+        if (value.type === "finish") {
+          if (value.totalUsage) {
+            await onUsage?.({
+              inputTokens: value.totalUsage.inputTokens,
+              outputTokens: value.totalUsage.outputTokens,
+            });
+          }
+
+          if (!didBlock) {
+            enqueueBufferedText();
+          }
         }
 
         pending.push(value);
@@ -898,6 +982,19 @@ export async function POST(req: Request) {
   }
 
   const chatModel = getChatModel(model);
+  const selectedModel = chatModels[chatModel][0];
+  const dailyTokens = await getDailyTokenUsage(
+    authenticatedUserId,
+    profileClient,
+  );
+
+  if (dailyTokens >= dailyTokenLimit) {
+    return createAssistantTextResponse(
+      tokenBudgetExceededMessage,
+      sanitizedMessages,
+    );
+  }
+
   const modelMessages = attachImageToLatestUserMessage(
     await convertToModelMessages(sanitizedMessages),
     sanitizedMessages,
@@ -921,7 +1018,15 @@ export async function POST(req: Request) {
     profileClient,
   });
 
-  const filteredStream = filterOutputStream(stream);
+  const filteredStream = filterOutputStream(stream, (usage) =>
+    logApiUsage({
+      endpoint: "/api/chat",
+      model: selectedModel,
+      profileClient,
+      usage,
+      userId: authenticatedUserId,
+    }),
+  );
 
   return createUIMessageStreamResponse({
     stream: toUIMessageStream({

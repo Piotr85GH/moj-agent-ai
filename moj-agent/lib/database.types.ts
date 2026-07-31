@@ -12,6 +12,36 @@ export type Database = {
   };
   public: {
     Tables: {
+      api_usage: {
+        Row: {
+          id: string;
+          user_id: string;
+          created_at: string;
+          tokens_input: number;
+          tokens_output: number;
+          model: string;
+          endpoint: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          created_at?: string;
+          tokens_input?: number;
+          tokens_output?: number;
+          model: string;
+          endpoint: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          created_at?: string;
+          tokens_input?: number;
+          tokens_output?: number;
+          model?: string;
+          endpoint?: string;
+        };
+        Relationships: [];
+      };
       briefings: {
         Row: {
           id: string;
