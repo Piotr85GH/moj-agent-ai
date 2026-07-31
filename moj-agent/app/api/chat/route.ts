@@ -86,6 +86,10 @@ type TokenUsage = {
   outputTokens?: number;
 };
 
+type InputValidationResult =
+  | { ok: true }
+  | { ok: false; reason: string; text: string };
+
 const knowledgePrompt = `
 ## BAZA WIEDZY FIRMY
 Masz dostep do bazy wiedzy firmy przez narzedzie searchKnowledge.
@@ -400,7 +404,7 @@ function sanitizeMessages(messages: UIMessage[]) {
   }));
 }
 
-function validateLatestUserInput(messages: UIMessage[]) {
+function validateLatestUserInput(messages: UIMessage[]): InputValidationResult {
   const latestUserMessage = [...messages]
     .reverse()
     .find((message) => message.role === "user");
@@ -408,10 +412,22 @@ function validateLatestUserInput(messages: UIMessage[]) {
   const normalized = text.toLowerCase();
 
   if (text.length > 2000) {
-    return false;
+    return { ok: false, reason: "Przekroczono limit 2000 znakow.", text };
   }
 
-  return !inputBlacklist.some((phrase) => normalized.includes(phrase));
+  const blockedPhrase = inputBlacklist.find((phrase) =>
+    normalized.includes(phrase),
+  );
+
+  if (blockedPhrase) {
+    return {
+      ok: false,
+      reason: `Wykryto fraze z blacklisty: ${blockedPhrase}.`,
+      text,
+    };
+  }
+
+  return { ok: true };
 }
 
 function getRateLimitKey(
@@ -458,6 +474,10 @@ function checkRateLimit(key: string) {
   return { allowed: true };
 }
 
+function getProfileNameForLogs(userProfile?: UserProfilePayload) {
+  return userProfile?.name?.trim() || userProfile?.display_name?.trim() || null;
+}
+
 function getTodayStartIso() {
   const now = new Date();
 
@@ -498,12 +518,14 @@ async function logApiUsage({
   profileClient,
   usage,
   userId,
+  userName,
 }: {
   endpoint: string;
   model: string;
   profileClient: AppSupabaseClient;
   usage?: TokenUsage;
   userId?: string;
+  userName?: string | null;
 }) {
   if (!userId || !usage) {
     return;
@@ -511,6 +533,7 @@ async function logApiUsage({
 
   const { error } = await profileClient.from("api_usage").insert({
     user_id: userId,
+    user_name: userName ?? null,
     tokens_input: usage.inputTokens ?? 0,
     tokens_output: usage.outputTokens ?? 0,
     model,
@@ -519,6 +542,68 @@ async function logApiUsage({
 
   if (error) {
     console.warn("Nie udalo sie zapisac zuzycia tokenow.", error);
+  }
+}
+
+async function logSuspiciousMessage({
+  endpoint,
+  message,
+  profileClient,
+  reason,
+  userId,
+  userKey,
+  userName,
+}: {
+  endpoint: string;
+  message: string;
+  profileClient: AppSupabaseClient;
+  reason: string;
+  userId?: string;
+  userKey?: string;
+  userName?: string | null;
+}) {
+  const { error } = await profileClient.from("message_logs").insert({
+    user_id: userId ?? null,
+    user_key: userKey ?? userId ?? null,
+    user_name: userName ?? null,
+    message: message.slice(0, 2000),
+    reason,
+    blocked: true,
+    endpoint,
+  });
+
+  if (error) {
+    console.warn("Nie udalo sie zapisac podejrzanej wiadomosci.", error);
+  }
+}
+
+async function logAcceptedMessage({
+  endpoint,
+  message,
+  profileClient,
+  userId,
+  userKey,
+  userName,
+}: {
+  endpoint: string;
+  message: string;
+  profileClient: AppSupabaseClient;
+  userId?: string;
+  userKey?: string;
+  userName?: string | null;
+}) {
+  const { error } = await profileClient.from("message_logs").insert({
+    user_id: userId ?? null,
+    user_key: userKey ?? userId ?? null,
+    user_name: userName ?? null,
+    message: message.slice(0, 2000),
+    reason: "Przyjeto do LLM.",
+    blocked: false,
+    endpoint,
+  });
+
+  if (error) {
+    console.warn("Nie udalo sie zapisac logu wiadomosci.", error);
   }
 }
 
@@ -544,6 +629,7 @@ function createAssistantTextResponse(text: string, originalMessages: UIMessage[]
 function filterOutputStream(
   stream: ReadableStream<TextStreamPart<any>>,
   onUsage?: (usage: TokenUsage) => Promise<void> | void,
+  onBlockedOutput?: (text: string) => Promise<void> | void,
 ) {
   let reader: ReadableStreamDefaultReader<TextStreamPart<any>> | undefined;
   let textId = `filtered-${Date.now()}`;
@@ -610,6 +696,7 @@ function filterOutputStream(
 
           if (containsOutputLeak(bufferedText)) {
             didBlock = true;
+            await onBlockedOutput?.(bufferedText);
             await reader.cancel().catch(() => undefined);
             bufferedText = "";
             enqueueBlockedText();
@@ -966,18 +1053,46 @@ export async function POST(req: Request) {
   } = await profileClient.auth.getUser(accessToken);
   const authenticatedUserId = user?.id;
   const sanitizedMessages = sanitizeMessages(messages);
+  const latestUserText = getMessageText(
+    [...sanitizedMessages]
+      .reverse()
+      .find((message) => message.role === "user")?.parts ?? [],
+  );
+  const userNameForLogs = getProfileNameForLogs(userProfile);
   const rateLimit = checkRateLimit(
     getRateLimitKey(req, authenticatedUserId, bodyUserId),
   );
 
   if (!rateLimit.allowed) {
+    await logSuspiciousMessage({
+      endpoint: "/api/chat",
+      message: latestUserText,
+      profileClient,
+      reason: "Przekroczono limit wiadomosci 50/h.",
+      userId: authenticatedUserId,
+      userKey: bodyUserId,
+      userName: userNameForLogs,
+    });
+
     return createAssistantTextResponse(
       rateLimit.message ?? "Osiagnales limit wiadomosci (50/h). Sprobuj pozniej.",
       sanitizedMessages,
     );
   }
 
-  if (!validateLatestUserInput(sanitizedMessages)) {
+  const inputValidation = validateLatestUserInput(sanitizedMessages);
+
+  if (!inputValidation.ok) {
+    await logSuspiciousMessage({
+      endpoint: "/api/chat",
+      message: inputValidation.text,
+      profileClient,
+      reason: inputValidation.reason,
+      userId: authenticatedUserId,
+      userKey: bodyUserId,
+      userName: userNameForLogs,
+    });
+
     return createAssistantTextResponse(blockedMessage, sanitizedMessages);
   }
 
@@ -989,11 +1104,30 @@ export async function POST(req: Request) {
   );
 
   if (dailyTokens >= dailyTokenLimit) {
+    await logSuspiciousMessage({
+      endpoint: "/api/chat",
+      message: latestUserText,
+      profileClient,
+      reason: "Przekroczono dzienny limit tokenow 10k.",
+      userId: authenticatedUserId,
+      userKey: bodyUserId,
+      userName: userNameForLogs,
+    });
+
     return createAssistantTextResponse(
       tokenBudgetExceededMessage,
       sanitizedMessages,
     );
   }
+
+  await logAcceptedMessage({
+    endpoint: "/api/chat",
+    message: latestUserText,
+    profileClient,
+    userId: authenticatedUserId,
+    userKey: bodyUserId,
+    userName: userNameForLogs,
+  });
 
   const modelMessages = attachImageToLatestUserMessage(
     await convertToModelMessages(sanitizedMessages),
@@ -1018,14 +1152,27 @@ export async function POST(req: Request) {
     profileClient,
   });
 
-  const filteredStream = filterOutputStream(stream, (usage) =>
-    logApiUsage({
-      endpoint: "/api/chat",
-      model: selectedModel,
-      profileClient,
-      usage,
-      userId: authenticatedUserId,
-    }),
+  const filteredStream = filterOutputStream(
+    stream,
+    (usage) =>
+      logApiUsage({
+        endpoint: "/api/chat",
+        model: selectedModel,
+        profileClient,
+        usage,
+        userId: authenticatedUserId,
+        userName: userNameForLogs,
+      }),
+    (text) =>
+      logSuspiciousMessage({
+        endpoint: "/api/chat",
+        message: text,
+        profileClient,
+        reason: "Zablokowano odpowiedz przez filtr outputu.",
+        userId: authenticatedUserId,
+        userKey: bodyUserId,
+        userName: userNameForLogs,
+      }),
   );
 
   return createUIMessageStreamResponse({

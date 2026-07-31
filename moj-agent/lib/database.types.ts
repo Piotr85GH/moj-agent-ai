@@ -16,6 +16,7 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
+          user_name: string | null;
           created_at: string;
           tokens_input: number;
           tokens_output: number;
@@ -25,6 +26,7 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
+          user_name?: string | null;
           created_at?: string;
           tokens_input?: number;
           tokens_output?: number;
@@ -34,6 +36,7 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string;
+          user_name?: string | null;
           created_at?: string;
           tokens_input?: number;
           tokens_output?: number;
@@ -154,6 +157,42 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      message_logs: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          user_key: string | null;
+          user_name: string | null;
+          created_at: string;
+          message: string;
+          reason: string;
+          blocked: boolean;
+          endpoint: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          user_key?: string | null;
+          user_name?: string | null;
+          created_at?: string;
+          message: string;
+          reason: string;
+          blocked?: boolean;
+          endpoint?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          user_key?: string | null;
+          user_name?: string | null;
+          created_at?: string;
+          message?: string;
+          reason?: string;
+          blocked?: boolean;
+          endpoint?: string;
+        };
+        Relationships: [];
       };
       reports: {
         Row: {
