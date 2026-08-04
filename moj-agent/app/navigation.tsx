@@ -27,6 +27,7 @@ const navItems = [
   { href: "/vision", icon: "\u{1F441}\u{FE0F}", label: "Vision" },
   { href: "/fewshot", icon: "\u{1F4D6}", label: "Slownik AI" },
   { href: "/admin/security", icon: "\u{1F6E1}\u{FE0F}", label: "Security" },
+  { href: "/admin/dashboard", icon: "\u{1F4CA}", label: "Admin Dashboard" },
 ];
 
 function isActive(pathname: string, href: string) {
