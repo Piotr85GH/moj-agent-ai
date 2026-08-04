@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "./auth-provider";
 
 const navItems = [
@@ -42,6 +42,23 @@ export function Navigation() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    const storedTheme = window.localStorage.getItem("nexus-theme");
+    const initialTheme = storedTheme === "light" ? "light" : "dark";
+
+    setTheme(initialTheme);
+    document.documentElement.dataset.theme = initialTheme;
+  }, []);
+
+  function toggleTheme() {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+
+    setTheme(nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+    window.localStorage.setItem("nexus-theme", nextTheme);
+  }
 
   if (!user || pathname === "/login") {
     return null;
@@ -85,6 +102,17 @@ export function Navigation() {
             </Link>
           ))}
         </div>
+        <button
+          aria-label={
+            theme === "dark" ? "Przelacz na jasny motyw" : "Przelacz na ciemny motyw"
+          }
+          className="side-nav-theme"
+          onClick={toggleTheme}
+          type="button"
+        >
+          <span>{theme === "dark" ? "\u2600\uFE0F" : "\u{1F319}"}</span>
+          {theme === "dark" ? "Jasny motyw" : "Ciemny motyw"}
+        </button>
         <button
           className="side-nav-signout"
           onClick={() => {

@@ -1,0 +1,24 @@
+{
+  "name": "Nexus AI",
+  "short_name": "Nexus",
+  "description": "Osobisty asystent AI z baza wiedzy, pamiecia i automatyzacjami.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#7df7c8",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
