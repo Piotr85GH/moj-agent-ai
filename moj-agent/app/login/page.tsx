@@ -66,8 +66,8 @@ export default function LoginPage() {
       <section className="login-panel" aria-label="Logowanie">
         <div className="login-copy">
           <span>Agent AI</span>
-          <h1>{isSignUp ? "Utworz konto" : "Zaloguj sie"}</h1>
-          <p>Rozmowy i dokumenty sa widoczne tylko dla zalogowanego konta.</p>
+          <h1>{isSignUp ? "Utwórz konto" : "Zaloguj się"}</h1>
+          <p>Rozmowy i dokumenty są widoczne tylko dla zalogowanego konta.</p>
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
@@ -84,13 +84,13 @@ export default function LoginPage() {
           </label>
 
           <label>
-            <span>Haslo</span>
+            <span>Hasło</span>
             <input
               autoComplete={isSignUp ? "new-password" : "current-password"}
               disabled={isSubmitting}
               minLength={6}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Minimum 6 znakow"
+              placeholder="Minimum 6 znaków"
               type="password"
               value={password}
             />
@@ -104,8 +104,8 @@ export default function LoginPage() {
             {isSubmitting
               ? "Przetwarzam..."
               : isSignUp
-                ? "Zarejestruj sie"
-                : "Zaloguj sie"}
+                ? "Zarejestruj się"
+                : "Zaloguj się"}
           </button>
 
           <button
@@ -118,7 +118,7 @@ export default function LoginPage() {
             }}
             type="button"
           >
-            {isSignUp ? "Mam juz konto" : "Nie mam konta"}
+            {isSignUp ? "Mam już konto" : "Nie mam konta"}
           </button>
 
           {status && <p className="login-status">{status}</p>}
