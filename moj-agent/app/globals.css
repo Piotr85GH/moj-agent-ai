@@ -1832,8 +1832,8 @@ body {
 .usage-pie-wrap {
   display: grid;
   align-items: center;
-  gap: 18px;
-  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 22px;
+  grid-template-columns: 180px minmax(180px, 1fr);
 }
 
 .usage-pie {
@@ -1846,13 +1846,15 @@ body {
 
 .usage-pie-legend {
   display: grid;
-  gap: 10px;
+  align-content: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 .usage-pie-legend div {
   display: grid;
-  align-items: center;
-  gap: 4px 9px;
+  align-items: start;
+  column-gap: 10px;
   grid-template-columns: 10px minmax(0, 1fr);
 }
 
@@ -1860,16 +1862,28 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 999px;
+  margin-top: 5px;
 }
 
 .usage-pie-legend strong,
 .usage-pie-legend small {
   min-width: 0;
-  overflow-wrap: anywhere;
+  line-height: 1.35;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .usage-pie-legend strong {
   color: #ffffff;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.usage-pie-legend small {
+  display: block;
+  grid-column: 2;
+  margin-top: 2px;
+  white-space: nowrap;
 }
 
 .security-panel-wide {
