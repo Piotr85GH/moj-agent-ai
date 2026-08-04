@@ -42,7 +42,7 @@ export function Navigation() {
   const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
 
-  if (pathname === "/login") {
+  if (!user || pathname === "/login") {
     return null;
   }
 

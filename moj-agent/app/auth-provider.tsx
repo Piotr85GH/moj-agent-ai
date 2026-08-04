@@ -21,7 +21,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const publicPaths = new Set(["/login"]);
+const publicPaths = new Set(["/", "/login"]);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
