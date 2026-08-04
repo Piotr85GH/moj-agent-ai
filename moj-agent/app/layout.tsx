@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { AuthProvider } from "./auth-provider";
 import { Navigation } from "./navigation";
+import { PwaInstaller } from "./pwa-installer";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,7 +9,15 @@ export const metadata: Metadata = {
   description:
     "Agent AI z baza wiedzy, pamiecia rozmow, automatyzacjami i dashboardem uzycia.",
   applicationName: "Nexus AI",
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Nexus AI",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32" },
@@ -38,6 +47,13 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f8fb" },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -49,6 +65,7 @@ export default function RootLayout({
         <AuthProvider>
           <Navigation />
           <div className="app-content">{children}</div>
+          <PwaInstaller />
         </AuthProvider>
       </body>
     </html>
