@@ -69,9 +69,9 @@ function LandingPage() {
           </div>
           <div className="landing-window landing-window-side">
             <strong>Baza wiedzy</strong>
-            <span>Oferta_2026.pdf</span>
-            <span>FAQ_sprzedaz.md</span>
-            <span>Procedury_supportu.docx</span>
+            <span>Oferta_2026</span>
+            <span>FAQ_sprzedaz</span>
+            <span>Procedury_supportu</span>
           </div>
         </div>
       </section>
